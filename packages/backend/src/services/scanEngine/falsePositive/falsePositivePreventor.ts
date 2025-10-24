@@ -62,8 +62,8 @@ export class FalsePositivePreventor {
     // Combine RIOT results (domain + IP)
     const riotCheck: RIOTCheckResult = {
       isRIOT: riotCheckDomain.isRIOT || riotCheckIP.isRIOT,
-      category: riotCheckDomain.category || riotCheckIP.category,
-      description: riotCheckDomain.description || riotCheckIP.description,
+      category: (riotCheckDomain as any).category || (riotCheckIP as any).category,
+      description: (riotCheckDomain as any).description || (riotCheckIP as any).description,
       confidence: Math.max(riotCheckDomain.confidence, riotCheckIP.confidence)
     };
 

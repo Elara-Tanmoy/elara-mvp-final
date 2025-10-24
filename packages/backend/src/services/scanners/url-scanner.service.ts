@@ -100,8 +100,8 @@ export class URLScanner {
       try {
         const whoisData = await whois(url.hostname, { follow: 1, timeout: 5000 });
 
-        if (whoisData && whoisData.creationDate) {
-          const creationDate = new Date(whoisData.creationDate);
+        if (whoisData && (whoisData as any).creationDate) {
+          const creationDate = new Date((whoisData as any).creationDate);
           const ageInDays = Math.floor((Date.now() - creationDate.getTime()) / (1000 * 60 * 60 * 24));
 
           if (ageInDays <= 7) {
@@ -135,10 +135,10 @@ export class URLScanner {
         }
 
         // Domain parking detection
-        if (whoisData && whoisData.registrar) {
+        if (whoisData && (whoisData as any).registrar) {
           const parkingIndicators = ['parking', 'sedo', 'bodis', 'parked'];
           const isPossiblyParked = parkingIndicators.some(indicator =>
-            whoisData.registrar.toLowerCase().includes(indicator)
+            (whoisData as any).registrar.toLowerCase().includes(indicator)
           );
 
           if (isPossiblyParked) {
@@ -148,7 +148,7 @@ export class URLScanner {
               severity: 'medium',
               message: 'Domain may be parked or for sale',
               points: 10,
-              details: { registrar: whoisData.registrar }
+              details: { registrar: (whoisData as any).registrar }
             });
           }
         }

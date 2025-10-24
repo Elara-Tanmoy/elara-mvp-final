@@ -53,6 +53,7 @@ export interface ReachabilityProbeResult {
     ok: boolean;
     statusCode?: number;
     headers?: Record<string, string>;
+    body?: string;
     redirectChain?: string[];
     error?: string;
     duration: number;
@@ -99,6 +100,7 @@ export interface ValidationResult {
   error?: string;
   isPrivateNetwork?: boolean;
   components?: URLComponents;
+  nameservers?: string[];
 }
 
 export interface Stage0Result {
@@ -213,6 +215,13 @@ export interface FinalScanResult {
   };
 
   timestamp: Date;
+  metadata: {
+    scanId?: string;
+    duration: number;
+    timestamp: Date;
+    configurationId: string;
+    configurationName: string;
+  };
 }
 
 export interface ScanConfiguration {

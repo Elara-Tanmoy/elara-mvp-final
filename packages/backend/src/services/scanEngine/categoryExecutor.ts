@@ -58,7 +58,7 @@ export class CategoryExecutor {
     }
 
     // Determine which categories to run based on pipeline
-    const pipeline = stage0.pipeline as Pipeline;
+    const pipeline = stage0.pipeline as unknown as Pipeline;
     const categoriesToRun = PIPELINE_CATEGORY_MAP[pipeline] || [];
 
     logger.info(`[Category Executor] Pipeline: ${pipeline}, Categories to run: ${categoriesToRun.length}`);
@@ -134,10 +134,10 @@ export class CategoryExecutor {
               findings: result.findings.length,
               duration: categoryDuration,
               findingsDetail: result.findings.map(f => ({
-                type: f.type,
+                checkId: f.checkId,
                 severity: f.severity,
                 message: f.message,
-                points: f.pointsDeducted
+                points: f.score
               }))
             }
           });
@@ -305,7 +305,7 @@ export class CategoryExecutor {
           });
         });
 
-        socket.on('error', (error) => {
+        socket.on('error', (error: any) => {
           logger.error(`[Category Executor] SSL error for ${hostname}:`, error);
           resolve(null);
         });

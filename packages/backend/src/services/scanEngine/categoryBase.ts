@@ -43,7 +43,7 @@ export interface CategoryContext {
   url: string;
   urlComponents: URLComponents;
   reachability: ReachabilityProbeResult;
-  config: CategoryConfig;
+  config: any; // Map of categoryId -> CategoryConfig
   httpResponse?: {
     statusCode: number;
     headers: Record<string, string>;

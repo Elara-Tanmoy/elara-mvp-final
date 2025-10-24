@@ -171,7 +171,7 @@ export class TombstoneChecker {
 
       // Count by source
       const bySources: Record<string, number> = {};
-      all.forEach(t => {
+      all.forEach((t: any) => {
         bySources[t.source] = (bySources[t.source] || 0) + 1;
       });
 

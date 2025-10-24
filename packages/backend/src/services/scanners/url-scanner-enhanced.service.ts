@@ -546,8 +546,8 @@ export class EnhancedURLScanner {
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)) // 5 second timeout
       ]);
 
-      if (whoisData && whoisData.creationDate) {
-        const createdDate = new Date(whoisData.creationDate);
+      if (whoisData && (whoisData as any).creationDate) {
+        const createdDate = new Date((whoisData as any).creationDate);
         const ageInDays = (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
         const ageInYears = ageInDays / 365;
 
@@ -563,7 +563,7 @@ export class EnhancedURLScanner {
               ageInDays: Math.floor(ageInDays),
               ageDescription: 'Less than 1 week old',
               createdDate: createdDate.toISOString(),
-              registrar: whoisData.registrar || 'Unknown'
+              registrar: (whoisData as any).registrar || 'Unknown'
             }
           });
         } else if (ageInDays < 30) {
@@ -577,7 +577,7 @@ export class EnhancedURLScanner {
               ageInDays: Math.floor(ageInDays),
               ageDescription: 'Less than 1 month old',
               createdDate: createdDate.toISOString(),
-              registrar: whoisData.registrar || 'Unknown'
+              registrar: (whoisData as any).registrar || 'Unknown'
             }
           });
         } else if (ageInDays < 90) {
@@ -591,7 +591,7 @@ export class EnhancedURLScanner {
               ageInDays: Math.floor(ageInDays),
               ageDescription: 'Less than 3 months old',
               createdDate: createdDate.toISOString(),
-              registrar: whoisData.registrar || 'Unknown'
+              registrar: (whoisData as any).registrar || 'Unknown'
             }
           });
         } else if (ageInDays < 365) {
@@ -623,7 +623,7 @@ export class EnhancedURLScanner {
         }
 
         // Privacy protection detection
-        const registrantOrg = whoisData.registrant?.organization || whoisData.registrantOrganization || '';
+        const registrantOrg = (whoisData as any).registrant?.organization || (whoisData as any).registrantOrganization || '';
         const privacyKeywords = ['privacy', 'protected', 'redacted', 'proxy', 'private', 'withheld'];
         const hasPrivacy = privacyKeywords.some(keyword =>
           registrantOrg.toLowerCase().includes(keyword)
@@ -656,13 +656,13 @@ export class EnhancedURLScanner {
         }
 
         // Registrar analysis
-        if (whoisData.registrar) {
+        if ((whoisData as any).registrar) {
           // High-risk registrars commonly used for phishing
           const suspiciousRegistrars = [
             'namecheap', 'godaddy', 'tucows', 'enom',
             'publicdomainregistry', 'pdr', 'freenom'
           ];
-          const registrarLower = whoisData.registrar.toLowerCase();
+          const registrarLower = (whoisData as any).registrar.toLowerCase();
           const isSuspiciousRegistrar = suspiciousRegistrars.some(r =>
             registrarLower.includes(r)
           );
@@ -672,10 +672,10 @@ export class EnhancedURLScanner {
             findings.push({
               category: 'Domain Analysis',
               severity: 'low',
-              message: `Recently registered with commonly-abused registrar: ${whoisData.registrar}`,
+              message: `Recently registered with commonly-abused registrar: ${(whoisData as any).registrar}`,
               points: 5,
               details: {
-                registrar: whoisData.registrar,
+                registrar: (whoisData as any).registrar,
                 note: 'These registrars are legitimate but frequently used by scammers'
               }
             });
@@ -684,15 +684,15 @@ export class EnhancedURLScanner {
           findings.push({
             category: 'Domain Analysis',
             severity: 'info',
-            message: `Registrar: ${whoisData.registrar}`,
+            message: `Registrar: ${(whoisData as any).registrar}`,
             points: 0,
-            details: { registrar: whoisData.registrar }
+            details: { registrar: (whoisData as any).registrar }
           });
         }
 
         // Expiry date analysis
-        if (whoisData.expirationDate) {
-          const expiryDate = new Date(whoisData.expirationDate);
+        if ((whoisData as any).expirationDate) {
+          const expiryDate = new Date((whoisData as any).expirationDate);
           const daysUntilExpiry = (expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
 
           if (daysUntilExpiry < 30 && daysUntilExpiry > 0) {
