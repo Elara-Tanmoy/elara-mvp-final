@@ -165,7 +165,7 @@ ELARA_BOT_EMAIL="tanmoy@thiefdroppers.com"
 ELARA_BOT_PASSWORD="Sarmishtha@13"
 
 # Twilio WhatsApp
-TWILIO_ACCOUNT_SID="YOUR_TWILIO_ACCOUNT_SID_HERE"
+TWILIO_ACCOUNT_SID="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 TWILIO_AUTH_TOKEN="3bd33f3cfd18d475b7d26554932e201b"
 TWILIO_WHATSAPP_NUMBER="whatsapp:+14155238886"
 
@@ -407,7 +407,7 @@ psql "postgresql://..." < backup_oct12_2025.sql
 ## 👥 Team Notes
 
 ### Credentials Used
-- **Twilio:** Account SID: YOUR_TWILIO_ACCOUNT_SID_HERE
+- **Twilio:** Account SID: ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 - **Elara Bot:** tanmoy@thiefdroppers.com
 - **Render API:** rnd_uLAwLFMRiNeVTipe5j4ng6OwG9TJ
 

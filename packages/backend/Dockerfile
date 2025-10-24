@@ -1,11 +1,7 @@
 # Multi-stage Dockerfile for Elara Backend (Production)
-# Supports monorepo structure with root build context
 
 # Stage 1: Build stage
 FROM node:18-alpine AS builder
-
-# Build arg for package path (defaults to packages/backend for monorepo)
-ARG PACKAGE_PATH=packages/backend
 
 # Set working directory
 WORKDIR /app
@@ -13,35 +9,24 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy workspace root files
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+COPY prisma ./prisma/
 
-# Copy only workspace packages that have package.json files
-COPY packages/backend/package.json ./packages/backend/
-COPY packages/frontend/package.json ./packages/frontend/
-COPY packages/admin/package.json ./packages/admin/
-COPY packages/blockchain/package.json ./packages/blockchain/
-COPY packages/shared/package.json ./packages/shared/
-# Note: browser-extension and proxy-service don't have package.json
+# Install dependencies
+RUN pnpm install --frozen-lockfile
 
-# Copy prisma schema (needed before install)
-COPY ${PACKAGE_PATH}/prisma ./packages/backend/prisma/
+# Copy source code
+COPY . .
 
-# Install dependencies for backend package only
-RUN pnpm install --frozen-lockfile --filter=backend
+# Generate Prisma Client
+RUN pnpm prisma generate
 
-# Copy source code into workspace structure
-COPY ${PACKAGE_PATH}/src ./packages/backend/src
-COPY ${PACKAGE_PATH}/tsconfig.json* ./packages/backend/
+# Build TypeScript
+RUN pnpm build
 
-# Generate Prisma Client for backend
-RUN pnpm --filter=backend prisma generate
-
-# Build TypeScript for backend
-RUN pnpm --filter=backend build
-
-# Remove dev dependencies from entire workspace
-RUN pnpm --filter=backend --prod deploy pruned
+# Remove dev dependencies
+RUN pnpm prune --prod
 
 # Stage 2: Production stage
 FROM node:18-alpine AS production
@@ -55,11 +40,11 @@ RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 # Set working directory
 WORKDIR /app
 
-# Copy built application from builder (from workspace structure)
-COPY --from=builder --chown=nodejs:nodejs /app/packages/backend/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/pruned/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/pruned/package.json ./package.json
-COPY --from=builder --chown=nodejs:nodejs /app/packages/backend/prisma ./prisma
+# Copy built application from builder
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/uploads && \

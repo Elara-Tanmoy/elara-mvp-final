@@ -1,11 +1,7 @@
 # Multi-stage Dockerfile for Elara Frontend (Production)
-# Supports monorepo structure with root build context
 
 # Stage 1: Build stage
 FROM node:20-alpine AS builder
-
-# Build arg for package path (defaults to packages/frontend for monorepo)
-ARG PACKAGE_PATH=packages/frontend
 
 # Set working directory
 WORKDIR /app
@@ -13,27 +9,19 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy workspace root files
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
 
-# Copy only workspace packages that have package.json files
-COPY packages/backend/package.json ./packages/backend/
-COPY packages/frontend/package.json ./packages/frontend/
-COPY packages/admin/package.json ./packages/admin/
-COPY packages/blockchain/package.json ./packages/blockchain/
-COPY packages/shared/package.json ./packages/shared/
-# Note: browser-extension and proxy-service don't have package.json
+# Install dependencies
+RUN pnpm install --frozen-lockfile
 
-# Install dependencies for frontend package only
-RUN pnpm install --frozen-lockfile --filter=frontend
-
-# Copy source code into workspace structure
-COPY ${PACKAGE_PATH} ./packages/frontend/
+# Copy source code
+COPY . .
 
 # Build application
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
-RUN pnpm --filter=frontend build
+RUN pnpm build
 
 # Stage 2: Production stage with Nginx
 FROM nginx:alpine AS production
@@ -41,11 +29,11 @@ FROM nginx:alpine AS production
 # Install security updates
 RUN apk update && apk upgrade
 
-# Copy built application from builder (from workspace structure)
-COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html
+# Copy built application from builder
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration from package directory
-COPY ${PACKAGE_PATH}/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Create non-root user
 RUN addgroup -g 1001 -S nginx && adduser -S nginx -u 1001 -G nginx
