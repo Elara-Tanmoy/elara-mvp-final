@@ -13,31 +13,35 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy root package files (for monorepo workspace)
-COPY pnpm-lock.yaml package.json* ./
+# Copy workspace root files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
-# Copy package-specific files
-COPY ${PACKAGE_PATH}/package.json ./backend-package.json
-COPY ${PACKAGE_PATH}/prisma ./prisma/
+# Copy all workspace package.json files
+COPY packages/backend/package.json ./packages/backend/
+COPY packages/frontend/package.json ./packages/frontend/
+COPY packages/proxy-service/package.json ./packages/proxy-service/
+COPY packages/admin/package.json* ./packages/admin/
+COPY packages/blockchain/package.json* ./packages/blockchain/
+COPY packages/browser-extension/package.json* ./packages/browser-extension/
 
-# Move backend package.json to correct location
-RUN mv backend-package.json package.json
+# Copy prisma schema (needed before install)
+COPY ${PACKAGE_PATH}/prisma ./packages/backend/prisma/
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies for backend package only
+RUN pnpm install --frozen-lockfile --filter=backend
 
-# Copy source code
-COPY ${PACKAGE_PATH}/src ./src
-COPY ${PACKAGE_PATH}/tsconfig.json* ./
+# Copy source code into workspace structure
+COPY ${PACKAGE_PATH}/src ./packages/backend/src
+COPY ${PACKAGE_PATH}/tsconfig.json* ./packages/backend/
 
-# Generate Prisma Client
-RUN pnpm prisma generate
+# Generate Prisma Client for backend
+RUN pnpm --filter=backend prisma generate
 
-# Build TypeScript
-RUN pnpm build
+# Build TypeScript for backend
+RUN pnpm --filter=backend build
 
-# Remove dev dependencies
-RUN pnpm prune --prod
+# Remove dev dependencies from entire workspace
+RUN pnpm --filter=backend --prod deploy pruned
 
 # Stage 2: Production stage
 FROM node:18-alpine AS production
@@ -51,11 +55,11 @@ RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 # Set working directory
 WORKDIR /app
 
-# Copy built application from builder
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
-COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
+# Copy built application from builder (from workspace structure)
+COPY --from=builder --chown=nodejs:nodejs /app/packages/backend/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/pruned/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/pruned/package.json ./package.json
+COPY --from=builder --chown=nodejs:nodejs /app/packages/backend/prisma ./prisma
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/uploads && \
