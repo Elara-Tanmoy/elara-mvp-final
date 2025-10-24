@@ -16,7 +16,7 @@ import {
   FRONTEND_URL
 } from '../config/oauth.config.js';
 
-const router: any = express.Router();
+const router = express.Router();
 
 // Debug logging to verify routes are loaded
 logger.info('[OAuth] Loading OAuth routes module...');

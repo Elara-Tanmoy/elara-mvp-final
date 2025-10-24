@@ -15,7 +15,7 @@ import { AdminAnalyticsController } from '../controllers/admin/analytics.control
 import { AdminHealthController } from '../controllers/admin/health.controller.js';
 import { scanConfigAdminController } from '../controllers/scan-config-admin.controller.js';
 
-const router: any = Router();
+const router = Router();
 
 // Initialize controllers
 const configController = new AdminConfigController();

@@ -24,7 +24,7 @@ export const initializeSocketServer = (httpServer: HttpServer): SocketIOServer =
     'https://elara-7c108p1d1-tanmoys-projects-1b158c68.vercel.app',
     'https://elara-mvp.vercel.app',
     process.env.CORS_ORIGIN
-  ].filter((origin): origin is string => typeof origin === 'string');
+  ].filter(Boolean);
 
   const corsOrigins = process.env.CORS_ORIGIN
     ? [...new Set([...allowedOrigins, ...process.env.CORS_ORIGIN.split(',').filter(Boolean)])]

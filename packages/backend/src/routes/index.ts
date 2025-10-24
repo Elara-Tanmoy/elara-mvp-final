@@ -28,7 +28,7 @@ import globalSettingsRoutes from './admin/globalSettings.routes.js';
 import { whatsappWebhookController } from '../controllers/whatsapp-webhook.controller.js';
 import { whatsappAdminController } from '../controllers/whatsapp-admin.controller.js';
 
-const router: any = express.Router();
+const router = express.Router();
 const rateLimiter = createTierBasedRateLimiter();
 
 // Health check
@@ -37,8 +37,10 @@ router.get('/health', async (req, res) => {
     // Check database connection
     let dbStatus = 'disconnected';
     try {
-      const { prisma } = await import('../config/database.js');
+      const { PrismaClient } = await import('@prisma/client');
+      const prisma = new PrismaClient();
       await prisma.$queryRaw`SELECT 1`;
+      dbStatus = 'connected';
       await prisma.$disconnect();
     } catch (error) {
       dbStatus = 'disconnected';

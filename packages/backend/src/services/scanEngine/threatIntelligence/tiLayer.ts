@@ -267,7 +267,7 @@ export class TILayer {
     });
 
     const data = await response.json();
-    const matches = (data as any).matches || [];
+    const matches = data.matches || [];
 
     if (matches.length > 0) {
       return {
@@ -300,8 +300,8 @@ export class TILayer {
     }
 
     const data = await response.json();
-    const malicious = (data as any).data?.attributes?.last_analysis_stats?.malicious || 0;
-    const suspicious = (data as any).data?.attributes?.last_analysis_stats?.suspicious || 0;
+    const malicious = data.data?.attributes?.last_analysis_stats?.malicious || 0;
+    const suspicious = data.data?.attributes?.last_analysis_stats?.suspicious || 0;
 
     if (malicious >= 5) {
       return {
@@ -333,14 +333,14 @@ export class TILayer {
     });
 
     const data = await response.json();
-    const listed = (data as any).results?.in_database === true && (data as any).results?.valid === true;
+    const listed = data.results?.in_database === true && data.results?.valid === true;
 
     if (listed) {
       return {
         verdict: 'malicious',
         score: 5,
         confidence: 90,
-        details: { phish_id: (data as any).results?.phish_id }
+        details: { phish_id: data.results?.phish_id }
       };
     }
 
@@ -358,14 +358,14 @@ export class TILayer {
     });
 
     const data = await response.json();
-    const active = (data as any).query_status === 'ok' && (data as any).url_status === 'online';
+    const active = data.query_status === 'ok' && data.url_status === 'online';
 
     if (active) {
       return {
         verdict: 'malicious',
         score: 5,
         confidence: 95,
-        details: { threat: (data as any).threat, tags: (data as any).tags }
+        details: { threat: data.threat, tags: data.tags }
       };
     }
 
@@ -388,7 +388,7 @@ export class TILayer {
       });
 
       const data = await response.json();
-      const pulseCount = (data as any).pulse_info?.count || 0;
+      const pulseCount = data.pulse_info?.count || 0;
 
       if (pulseCount >= 3) {
         return {
@@ -429,21 +429,21 @@ export class TILayer {
       });
 
       const data = await response.json();
-      const abuseScore = (data as any).data?.abuseConfidenceScore || 0;
+      const abuseScore = data.data?.abuseConfidenceScore || 0;
 
       if (abuseScore >= 75) {
         return {
           verdict: 'malicious',
           score: 5,
           confidence: 90,
-          details: { abuseScore, reports: (data as any).data?.totalReports }
+          details: { abuseScore, reports: data.data?.totalReports }
         };
       } else if (abuseScore >= 25) {
         return {
           verdict: 'suspicious',
           score: 2,
           confidence: 75,
-          details: { abuseScore, reports: (data as any).data?.totalReports }
+          details: { abuseScore, reports: data.data?.totalReports }
         };
       }
 
@@ -545,14 +545,14 @@ export class TILayer {
       });
 
       const data = await response.json();
-      const score = (data as any).result?.score || 0;
+      const score = data.result?.score || 0;
 
       if (score >= 7) {
         return {
           verdict: 'malicious',
           score: 5,
           confidence: 90,
-          details: { score, categories: (data as any).result?.cats }
+          details: { score, categories: data.result?.cats }
         };
       } else if (score >= 4) {
         return {

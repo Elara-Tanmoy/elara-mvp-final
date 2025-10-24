@@ -36,9 +36,6 @@ import { SecurityHeadersAnalyzer } from '../scoring/security-headers.js';
 import { OutputFormatter } from '../../utils/output-formatter.js';
 // PHASE 1 ENHANCEMENT: Trust Graph for network analysis
 import { trustGraphService } from '../graph/trustGraphService.js';
-// Database and encryption
-import { prisma } from '../../config/database.js';
-import { apiKeyEncryption } from '../apiKeyEncryption.service.js';
 
 interface URLScanResult {
   url: string;
@@ -546,8 +543,8 @@ export class EnhancedURLScanner {
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)) // 5 second timeout
       ]);
 
-      if (whoisData && (whoisData as any).creationDate) {
-        const createdDate = new Date((whoisData as any).creationDate);
+      if (whoisData && whoisData.creationDate) {
+        const createdDate = new Date(whoisData.creationDate);
         const ageInDays = (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
         const ageInYears = ageInDays / 365;
 
@@ -563,7 +560,7 @@ export class EnhancedURLScanner {
               ageInDays: Math.floor(ageInDays),
               ageDescription: 'Less than 1 week old',
               createdDate: createdDate.toISOString(),
-              registrar: (whoisData as any).registrar || 'Unknown'
+              registrar: whoisData.registrar || 'Unknown'
             }
           });
         } else if (ageInDays < 30) {
@@ -577,7 +574,7 @@ export class EnhancedURLScanner {
               ageInDays: Math.floor(ageInDays),
               ageDescription: 'Less than 1 month old',
               createdDate: createdDate.toISOString(),
-              registrar: (whoisData as any).registrar || 'Unknown'
+              registrar: whoisData.registrar || 'Unknown'
             }
           });
         } else if (ageInDays < 90) {
@@ -591,7 +588,7 @@ export class EnhancedURLScanner {
               ageInDays: Math.floor(ageInDays),
               ageDescription: 'Less than 3 months old',
               createdDate: createdDate.toISOString(),
-              registrar: (whoisData as any).registrar || 'Unknown'
+              registrar: whoisData.registrar || 'Unknown'
             }
           });
         } else if (ageInDays < 365) {
@@ -623,7 +620,7 @@ export class EnhancedURLScanner {
         }
 
         // Privacy protection detection
-        const registrantOrg = (whoisData as any).registrant?.organization || (whoisData as any).registrantOrganization || '';
+        const registrantOrg = whoisData.registrant?.organization || whoisData.registrantOrganization || '';
         const privacyKeywords = ['privacy', 'protected', 'redacted', 'proxy', 'private', 'withheld'];
         const hasPrivacy = privacyKeywords.some(keyword =>
           registrantOrg.toLowerCase().includes(keyword)
@@ -656,13 +653,13 @@ export class EnhancedURLScanner {
         }
 
         // Registrar analysis
-        if ((whoisData as any).registrar) {
+        if (whoisData.registrar) {
           // High-risk registrars commonly used for phishing
           const suspiciousRegistrars = [
             'namecheap', 'godaddy', 'tucows', 'enom',
             'publicdomainregistry', 'pdr', 'freenom'
           ];
-          const registrarLower = (whoisData as any).registrar.toLowerCase();
+          const registrarLower = whoisData.registrar.toLowerCase();
           const isSuspiciousRegistrar = suspiciousRegistrars.some(r =>
             registrarLower.includes(r)
           );
@@ -672,10 +669,10 @@ export class EnhancedURLScanner {
             findings.push({
               category: 'Domain Analysis',
               severity: 'low',
-              message: `Recently registered with commonly-abused registrar: ${(whoisData as any).registrar}`,
+              message: `Recently registered with commonly-abused registrar: ${whoisData.registrar}`,
               points: 5,
               details: {
-                registrar: (whoisData as any).registrar,
+                registrar: whoisData.registrar,
                 note: 'These registrars are legitimate but frequently used by scammers'
               }
             });
@@ -684,15 +681,15 @@ export class EnhancedURLScanner {
           findings.push({
             category: 'Domain Analysis',
             severity: 'info',
-            message: `Registrar: ${(whoisData as any).registrar}`,
+            message: `Registrar: ${whoisData.registrar}`,
             points: 0,
-            details: { registrar: (whoisData as any).registrar }
+            details: { registrar: whoisData.registrar }
           });
         }
 
         // Expiry date analysis
-        if ((whoisData as any).expirationDate) {
-          const expiryDate = new Date((whoisData as any).expirationDate);
+        if (whoisData.expirationDate) {
+          const expiryDate = new Date(whoisData.expirationDate);
           const daysUntilExpiry = (expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
 
           if (daysUntilExpiry < 30 && daysUntilExpiry > 0) {
@@ -1281,7 +1278,6 @@ export class EnhancedURLScanner {
       // 2. Analyze network connections
       // const networkAnalysis = await trustGraphService.analyzeNetwork(url.hostname);
 
-      /* DISABLED - Network analysis code below requires Neo4j
       // 3. Process risk assessment
       if (networkAnalysis.riskAssessment) {
         score = networkAnalysis.riskAssessment.score;
@@ -1373,7 +1369,6 @@ export class EnhancedURLScanner {
       });
 
       logger.info(`✅ Trust Graph analysis complete: Risk score ${score}/${maxScore}, network size ${networkAnalysis.networkSize}`);
-      */
     } catch (error) {
       logger.error('Trust Graph network analysis failed:', error);
       findings.push({
@@ -1463,7 +1458,7 @@ export class EnhancedURLScanner {
         networkInfo: categories.find(c => c.name === 'Network Analysis')
       };
 
-      const analysisPromises = models.map((model: any) => {
+      const analysisPromises = models.map(model => {
         const apiKey = model.apiKey ? apiKeyEncryption.decrypt(model.apiKey) : undefined;
         const prompt = `Analyze the following URL and its scan data: ${JSON.stringify(scanData, null, 2)}`;
         return aiService.queryConfiguredModel({ ...model, apiKey }, prompt);
@@ -1483,13 +1478,12 @@ export class EnhancedURLScanner {
       };
 
       // Basic consensus logic (can be improved)
-      const verdicts = results.map((r: PromiseSettledResult<any>) => (r.status === 'fulfilled' ? (r.value as any).verdict : 'unknown')).filter((v: string) => v !== 'unknown');
+      const verdicts = results.map(r => (r.status === 'fulfilled' ? (r.value as any).verdict : 'unknown')).filter(v => v !== 'unknown');
       if (verdicts.length > 0) {
-        const verdictCounts = verdicts.reduce((acc: Record<string, number>, v: string) => ({ ...acc, [v]: ((acc as Record<string, number>)[v] || 0) + 1 }), {} as Record<string, number>);
-        const entries = Object.entries(verdictCounts).sort((a, b) => (b[1] as number) - (a[1] as number));
-        const [topVerdict, count] = entries[0];
+        const verdictCounts = verdicts.reduce((acc, v) => ({ ...acc, [v]: (acc[v] || 0) + 1 }), {} as Record<string, number>);
+        const [topVerdict, count] = Object.entries(verdictCounts).sort((a, b) => b[1] - a[1])[0];
         consensus.consensus.verdict = topVerdict;
-        consensus.consensus.agreement = (count as number) / verdicts.length;
+        consensus.consensus.agreement = count / verdicts.length;
         consensus.consensus.summary = `Consensus verdict is ${topVerdict} with ${Math.round(consensus.consensus.agreement * 100)}% agreement.`;
       }
 

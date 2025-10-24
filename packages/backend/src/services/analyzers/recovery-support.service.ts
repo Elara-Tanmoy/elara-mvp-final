@@ -770,60 +770,6 @@ You are stronger than you think.`,
       nextCheckIn: 180
     };
   }
-  /**
-   * Get relevant resources for a scam incident
-   */
-  getRelevantResources(incident: any): RecoveryResource[] {
-    const relevantTypes: Array<'reporting' | 'financial' | 'emotional' | 'legal' | 'educational'> = ['reporting'];
-    
-    if (incident.totalLoss > 0) {
-      relevantTypes.push('financial');
-    }
-    
-    if (incident.emotionalDistress === 'high' || incident.emotionalDistress === 'severe') {
-      relevantTypes.push('emotional');
-    }
-    
-    relevantTypes.push('legal', 'educational');
-    
-    return this.resources.filter(r => relevantTypes.includes(r.type));
-  }
-
-  /**
-   * Schedule follow-ups for a user
-   */
-  scheduleFollowUps(userId: string, incident: any): any[] {
-    const followUps = [
-      {
-        userId,
-        scheduledFor: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        type: 'check_in',
-        message: '24-hour check-in'
-      },
-      {
-        userId,
-        scheduledFor: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        type: 'check_in',
-        message: 'Weekly check-in'
-      },
-      {
-        userId,
-        scheduledFor: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        type: 'check_in',
-        message: 'Monthly check-in'
-      }
-    ];
-    
-    return followUps;
-  }
-
-  /**
-   * Get a specific resource by ID
-   */
-  getResourceById(resourceId: string): RecoveryResource | null {
-    const resource = this.resources.find(r => r.name === resourceId);
-    return resource || null;
-  }
 }
 
 export const recoverySupportService = new RecoverySupportService();

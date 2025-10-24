@@ -196,11 +196,7 @@ class TwilioSenderService {
       logger.info('[TwilioSender] Testing Twilio connection...');
 
       // Fetch account info to test credentials
-      const accountSid = process.env.TWILIO_ACCOUNT_SID;
-      if (!accountSid) {
-        throw new Error('TWILIO_ACCOUNT_SID is not configured');
-      }
-      const account = await this.twilioClient.api.accounts(accountSid).fetch();
+      const account = await this.twilioClient.api.accounts(process.env.TWILIO_ACCOUNT_SID).fetch();
 
       logger.info('[TwilioSender] Twilio connection successful', {
         accountSid: account.sid,

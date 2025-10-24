@@ -17,7 +17,7 @@ import { CacheManager } from './cacheManager.js';
 import { TILayer } from './threatIntelligence/tiLayer.js';
 import { AIOrchestrator } from './aiConsensus/aiOrchestrator.js';
 import { FalsePositivePreventor } from './falsePositive/falsePositivePreventor.js';
-import { FinalScanResult, Stage0Result, ReachabilityState } from './types.js';
+import { FinalScanResult, Stage0Result } from './types.js';
 import { logger } from '../../config/logger.js';
 import { prisma } from '../../config/database.js';
 import { ScanEventEmitter } from '../events/scan-event-emitter.service.js';
@@ -169,13 +169,13 @@ export class Scanner {
       if (enableLogging) {
         scanLogger.logPhaseComplete(actualScanId, 'STAGE 0', Date.now() - scanStartTime, {
           pipeline: stage0.pipeline,
-          reachable: stage0.reachability.state === ReachabilityState.ONLINE,
-          ip: stage0.reachability.dns.ip
+          reachable: stage0.reachability.state === 'reachable',
+          ip: stage0.reachability.ip
         });
         scanLogger.log(actualScanId, {
           level: 'info',
           category: 'STAGE_0',
-          message: `✅ URL validation complete - Pipeline: ${stage0.pipeline}, IP: ${stage0.reachability.dns.ip || 'N/A'}`,
+          message: `✅ URL validation complete - Pipeline: ${stage0.pipeline}, IP: ${stage0.reachability.ip || 'N/A'}`,
           data: { state: stage0.reachability.state }
         });
       }
@@ -220,7 +220,7 @@ export class Scanner {
           level: 'info',
           category: 'STAGE_1',
           message: `✅ Categories analyzed: ${categoryExecution.categoryResults.length} checks - Score: ${categoryExecution.baseScore}/${categoryExecution.activeMaxScore}`,
-          data: { categoryResults: categoryExecution.categoryResults.map(c => ({ name: c.categoryId, score: c.score })) }
+          data: { categoryResults: categoryExecution.categoryResults.map(c => ({ name: c.category, score: c.score })) }
         });
       }
 
@@ -258,7 +258,7 @@ export class Scanner {
           level: tiLayerResult.maliciousCount > 0 ? 'warn' : 'info',
           category: 'STAGE_2',
           message: `📡 Threat Intelligence: ${tiLayerResult.maliciousCount} malicious, ${tiLayerResult.suspiciousCount} suspicious - Score: ${tiLayerResult.totalScore}/${tiLayerResult.maxScore}`,
-          data: { sourceResults: tiLayerResult.sources }
+          data: { sourceResults: tiLayerResult.sourceResults }
         });
       }
 
@@ -345,7 +345,7 @@ export class Scanner {
           level: 'info',
           category: 'AI_CONSENSUS',
           message: `🧠 AI Consensus: ${aiMultiplier.toFixed(2)}× multiplier | Agreement: ${aiAnalysis.agreementRate.toFixed(0)}% | Confidence: ${aiAnalysis.averageConfidence.toFixed(0)}%`,
-          data: { modelVotes: aiAnalysis.models, baseScore, finalScore }
+          data: { modelVotes: aiAnalysis.modelVotes, baseScore, finalScore }
         });
       }
 
@@ -358,8 +358,8 @@ export class Scanner {
 
       const fpResult = await this.fpPreventor.execute(
         stage0.validation.components!.domain,
-        stage0.reachability.dns.ip,
-        stage0.validation.nameservers || []
+        stage0.reachability.ip,
+        stage0.validation.nameservers
       );
 
       // Apply false positive adjustment to final score
@@ -652,7 +652,7 @@ export class Scanner {
         };
       }
 
-      logger.info(`[Scanner] Loaded ${aiModels.length} AI models from database: ${aiModels.map((m: any) => m.name).join(', ')}`);
+      logger.info(`[Scanner] Loaded ${aiModels.length} AI models from database: ${aiModels.map(m => m.name).join(', ')}`);
 
       return {
         models: modelsConfig,

@@ -46,7 +46,7 @@ export class AudioTranscriptionService {
     try {
       // Dynamically import Google Speech client
       // This prevents errors if @google-cloud/speech is not installed
-      const { SpeechClient } = await import('@google-cloud/speech' as any).catch(() => {
+      const { SpeechClient } = await import('@google-cloud/speech').catch(() => {
         logger.warn('Google Speech-to-Text not available. Install with: npm install @google-cloud/speech');
         return { SpeechClient: null };
       });

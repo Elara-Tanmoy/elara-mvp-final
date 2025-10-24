@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { chatbotController } from '../controllers/chatbot.controller.js';
 
-const router: any = Router();
+const router = Router();
 
 // Chat endpoints
 router.post('/chat', chatbotController.chat.bind(chatbotController));

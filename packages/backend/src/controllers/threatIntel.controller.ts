@@ -80,7 +80,7 @@ export class ThreatIntelController {
       });
 
       // Enhance each source with additional data
-      const enhancedSources = await Promise.all(sources.map(async (source: any) => {
+      const enhancedSources = await Promise.all(sources.map(async (source) => {
         // Get last sync job
         const lastSync = await prisma.threatFeedSync.findFirst({
           where: { sourceId: source.id },

@@ -3,7 +3,7 @@ import { proxyController } from '../controllers/proxy.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { createTierBasedRateLimiter } from '../middleware/rateLimiter.middleware.js';
 
-const router: any = express.Router();
+const router = express.Router();
 const rateLimiter = createTierBasedRateLimiter();
 
 // All proxy routes require authentication

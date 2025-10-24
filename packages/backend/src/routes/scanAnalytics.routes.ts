@@ -8,7 +8,7 @@ import { Router } from 'express';
 import { scanAnalyticsController } from '../controllers/scanAnalytics.controller.js';
 import { authenticate, requireAdmin } from '../middleware/auth.middleware.js';
 
-const router: any = Router();
+const router = Router();
 
 // Apply authentication and admin-only access to all routes
 router.use(authenticate);

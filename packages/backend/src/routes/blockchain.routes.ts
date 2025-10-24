@@ -8,7 +8,7 @@ import { blockchainController } from '../controllers/blockchain.controller.js';
 import { requireAdmin } from '../middleware/auth.middleware.js';
 import { createTierBasedRateLimiter } from '../middleware/rateLimiter.middleware.js';
 
-const router: any = Router();
+const router = Router();
 const rateLimiter = createTierBasedRateLimiter();
 
 /**

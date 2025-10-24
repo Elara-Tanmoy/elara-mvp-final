@@ -314,7 +314,7 @@ export class BigQueryLoggerService {
       'creditCard', 'ssn', 'dob', 'fullName', 'address'
     ];
 
-    const recursiveSanitize: any = (obj: any) => {
+    const recursiveSanitize = (obj: any) => {
       if (typeof obj !== 'object' || obj === null) return obj;
 
       if (Array.isArray(obj)) {

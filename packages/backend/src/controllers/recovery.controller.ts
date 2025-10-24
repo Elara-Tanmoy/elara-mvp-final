@@ -67,6 +67,7 @@ export class RecoveryController {
       // Generate personalized recovery plan
       const recoveryPlan = recoverySupportService.generateRecoveryPlan({
         ...incidentData,
+        emotionalAssessment
       });
 
       // Get relevant resources

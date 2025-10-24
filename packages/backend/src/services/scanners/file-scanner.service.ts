@@ -219,7 +219,7 @@ export class FileScanner {
           }
 
           // Add findings for each red flag
-          conversationAnalysis.redFlags?.forEach((redFlag: any) => {
+          conversationAnalysis.redFlags?.forEach(redFlag => {
             findings.push({
               type: 'conversation_red_flag',
               severity: 'high',

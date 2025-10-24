@@ -6,8 +6,10 @@
  */
 
 import crypto from 'crypto';
-import { prisma } from '../../config/database.js';
+import { PrismaClient } from '@prisma/client';
 import { logger } from '../../config/logger.js';
+
+const prisma = new PrismaClient();
 
 /**
  * Normalize threat indicator value for consistent comparison

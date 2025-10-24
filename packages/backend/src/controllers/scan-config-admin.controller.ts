@@ -400,7 +400,7 @@ export class ScanConfigAdminController {
         success: true,
         data: {
           totalScans: scans,
-          riskDistribution: riskDistribution.reduce((acc: any, curr: any) => {
+          riskDistribution: riskDistribution.reduce((acc, curr) => {
             acc[curr.riskLevel] = curr._count.riskLevel;
             return acc;
           }, {} as Record<string, number>),
@@ -1070,7 +1070,7 @@ export class ScanConfigAdminController {
       }
 
       // Run scan with each configuration in parallel
-      const scanPromises = configurations.map(async (config: any) => {
+      const scanPromises = configurations.map(async (config) => {
         try {
           const scanner = new Scanner(config);
           const scanResult = await scanner.scan(url, userId);
@@ -1462,7 +1462,7 @@ export class ScanConfigAdminController {
       });
 
       // Group by category for easier frontend consumption
-      const grouped = checks.reduce((acc: any, check: any) => {
+      const grouped = checks.reduce((acc, check) => {
         if (!acc[check.category]) {
           acc[check.category] = [];
         }
@@ -1915,11 +1915,11 @@ export class ScanConfigAdminController {
 
           const data = await response.json();
 
-          if (response.ok && (data as any).content && (data as any).content[0]) {
+          if (response.ok && data.content && data.content[0]) {
             testResult.success = true;
-            testResult.sampleResponse = (data as any).content[0].text;
+            testResult.sampleResponse = data.content[0].text;
           } else {
-            throw new Error((data as any).error?.message || 'API request failed');
+            throw new Error(data.error?.message || 'API request failed');
           }
 
         } else if (model.provider === 'openai') {
@@ -1941,11 +1941,11 @@ export class ScanConfigAdminController {
 
           const data = await response.json();
 
-          if (response.ok && (data as any).choices && (data as any).choices[0]) {
+          if (response.ok && data.choices && data.choices[0]) {
             testResult.success = true;
-            testResult.sampleResponse = (data as any).choices[0].message.content;
+            testResult.sampleResponse = data.choices[0].message.content;
           } else {
-            throw new Error((data as any).error?.message || 'API request failed');
+            throw new Error(data.error?.message || 'API request failed');
           }
 
         } else if (model.provider === 'google') {
@@ -1969,11 +1969,11 @@ export class ScanConfigAdminController {
 
           const data = await response.json();
 
-          if (response.ok && (data as any).candidates && (data as any).candidates[0]) {
+          if (response.ok && data.candidates && data.candidates[0]) {
             testResult.success = true;
-            testResult.sampleResponse = (data as any).candidates[0].content.parts[0].text;
+            testResult.sampleResponse = data.candidates[0].content.parts[0].text;
           } else {
-            throw new Error((data as any).error?.message || 'API request failed');
+            throw new Error(data.error?.message || 'API request failed');
           }
 
         } else {

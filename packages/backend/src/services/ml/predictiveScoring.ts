@@ -151,10 +151,10 @@ export class PredictiveScoringService {
 
       // Count anomalies
       const anomalies = {
-        ownershipChanges: history.filter((h: any) => h.ownershipChange).length,
-        contentChanges: history.filter((h: any) => h.contentChange).length,
-        ipChanges: history.filter((h: any) => h.ipChange).length,
-        trafficSpikes: history.filter((h: any) => h.trafficSpike).length,
+        ownershipChanges: history.filter((h) => h.ownershipChange).length,
+        contentChanges: history.filter((h) => h.contentChange).length,
+        ipChanges: history.filter((h) => h.ipChange).length,
+        trafficSpikes: history.filter((h) => h.trafficSpike).length,
       };
 
       // Calculate risk trajectory

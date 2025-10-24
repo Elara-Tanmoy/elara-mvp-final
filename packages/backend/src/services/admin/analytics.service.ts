@@ -1,4 +1,4 @@
-import { prisma } from '../../config/database.js';
+import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { logger } from '../../config/logger.js';
 

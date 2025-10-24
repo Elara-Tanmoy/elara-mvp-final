@@ -270,6 +270,9 @@ export class MessageScanAdminController {
 
       const config = await prisma.messageScanConfig.create({
         data: {
+          name: name || `${preset.name} Configuration`,
+          description: description || preset.description,
+          isActive: false,
           ...preset.config,
           createdBy: userId
         }

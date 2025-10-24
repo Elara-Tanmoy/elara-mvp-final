@@ -475,12 +475,12 @@ export class EmailSecurityAnalyzer {
         ])
       ]);
 
-      const hasSPF = spfRecords.some((record: string[]) =>
-        record.some((part: string) => part.startsWith('v=spf1'))
+      const hasSPF = spfRecords.some(record =>
+        record.some(part => part.startsWith('v=spf1'))
       );
 
-      const hasDMARC = dmarcRecords.some((record: string[]) =>
-        record.some((part: string) => part.startsWith('v=DMARC1'))
+      const hasDMARC = dmarcRecords.some(record =>
+        record.some(part => part.startsWith('v=DMARC1'))
       );
 
       if (!hasSPF && !hasDMARC) {

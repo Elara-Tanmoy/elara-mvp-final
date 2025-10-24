@@ -5,7 +5,7 @@
  * Runs as a scheduled job (CronJob) every 5 minutes.
  */
 
-import { prisma } from '../config/database.js';
+import { PrismaClient } from '@prisma/client';
 import { logger } from '../config/logger.js';
 import { syncPhishTank } from '../services/threat-feeds/connectors/phishtank.js';
 import { syncOpenPhish } from '../services/threat-feeds/connectors/openphish.js';
@@ -20,6 +20,7 @@ import { syncGreyNoise } from '../services/threat-feeds/connectors/greynoise.js'
 import { syncCISAKEV } from '../services/threat-feeds/connectors/cisa-kev.js';
 import { syncCIRCL } from '../services/threat-feeds/connectors/circl.js';
 
+const prisma = new PrismaClient();
 
 interface SyncSource {
   name: string;

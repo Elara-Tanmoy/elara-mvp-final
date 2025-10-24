@@ -7,7 +7,7 @@ import { Router } from 'express';
 import { federatedLearningController } from '../controllers/federatedLearning.controller.js';
 import { globalRateLimiter } from '../middleware/rateLimiter.middleware.js';
 
-const router: any = Router();
+const router = Router();
 
 /**
  * PUBLIC ROUTES (no authentication required - privacy-preserving)

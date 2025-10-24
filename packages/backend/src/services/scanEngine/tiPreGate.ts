@@ -114,7 +114,7 @@ export class TIPreGate {
       const data = await response.json();
 
       // If matches found, it's NOT safe
-      const safe = !(data as any).matches || (data as any).matches.length === 0;
+      const safe = !data.matches || data.matches.length === 0;
 
       return { safe };
     } catch (error) {
@@ -152,7 +152,7 @@ export class TIPreGate {
 
       const data = await response.json();
 
-      const malicious = (data as any).data?.attributes?.last_analysis_stats?.malicious || 0;
+      const malicious = data.data?.attributes?.last_analysis_stats?.malicious || 0;
 
       return { detections: malicious };
     } catch (error) {
@@ -180,7 +180,7 @@ export class TIPreGate {
 
       const data = await response.json();
 
-      const listed = (data as any).results?.in_database === true && (data as any).results?.valid === true;
+      const listed = data.results?.in_database === true && data.results?.valid === true;
 
       return { listed };
     } catch (error) {
@@ -208,7 +208,7 @@ export class TIPreGate {
 
       // If query_status is "ok", URL is in database
       // If url_status is "online", it's actively malicious
-      const active = (data as any).query_status === 'ok' && (data as any).url_status === 'online';
+      const active = data.query_status === 'ok' && data.url_status === 'online';
 
       return { active };
     } catch (error) {

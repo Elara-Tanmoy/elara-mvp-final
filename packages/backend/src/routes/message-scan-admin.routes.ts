@@ -15,7 +15,7 @@
 import { Router } from 'express';
 import { messageScanAdminController } from '../controllers/admin/message-scan-admin.controller.js';
 
-const router: any = Router();
+const router = Router();
 
 // ========================================
 // Configuration Management Routes

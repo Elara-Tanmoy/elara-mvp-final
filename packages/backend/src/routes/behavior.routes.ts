@@ -7,7 +7,7 @@
 import { Router } from 'express';
 import { behaviorController } from '../controllers/behavior.controller.js';
 
-const router: any = Router();
+const router = Router();
 
 // POST /api/v2/behavior/report - Receive behavior report from browser extension
 router.post('/report', (req, res) => behaviorController.reportBehavior(req, res));
