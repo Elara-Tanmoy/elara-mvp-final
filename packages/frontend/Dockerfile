@@ -16,13 +16,13 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Copy workspace root files
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
-# Copy all workspace package.json files (use * for optional packages)
+# Copy only workspace packages that have package.json files
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/frontend/package.json ./packages/frontend/
-COPY packages/admin/package.json* ./packages/admin/
-COPY packages/blockchain/package.json* ./packages/blockchain/
-COPY packages/browser-extension/package.json* ./packages/browser-extension/
-# Note: proxy-service is Python-only, no package.json
+COPY packages/admin/package.json ./packages/admin/
+COPY packages/blockchain/package.json ./packages/blockchain/
+COPY packages/shared/package.json ./packages/shared/
+# Note: browser-extension and proxy-service don't have package.json
 
 # Install dependencies for frontend package only
 RUN pnpm install --frozen-lockfile --filter=frontend
