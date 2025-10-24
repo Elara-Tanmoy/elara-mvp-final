@@ -31,7 +31,7 @@ steps:
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/backend-api:${_ENV}-latest'
       - '-f'
-      - 'packages/backend/Dockerfile'
+      - 'gcp-config/docker/Dockerfile.backend'
       - '.'
     waitFor: ['-']
 
@@ -47,7 +47,7 @@ steps:
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/worker:${_ENV}-latest'
       - '-f'
-      - 'packages/backend/Dockerfile'
+      - 'gcp-config/docker/Dockerfile.worker'
       - '.'
     waitFor: ['-']
 
@@ -63,7 +63,7 @@ steps:
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/proxy:${_ENV}-latest'
       - '-f'
-      - 'packages/proxy-service/Dockerfile'
+      - 'gcp-config/docker/Dockerfile.proxy'
       - '.'
     waitFor: ['-']
 
@@ -75,13 +75,15 @@ steps:
     args:
       - 'build'
       - '--build-arg'
-      - 'VITE_API_URL=http://dev.elara.internal/api'
+      - 'VITE_API_URL=http://35.199.176.26/api'
+      - '--build-arg'
+      - 'VITE_ENVIRONMENT=development'
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/frontend:${_ENV}-${SHORT_SHA}'
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/frontend:${_ENV}-latest'
       - '-f'
-      - 'packages/frontend/Dockerfile'
+      - 'gcp-config/docker/Dockerfile.frontend'
       - '.'
     waitFor: ['-']
 
