@@ -33,6 +33,7 @@ jobs:
           gcloud builds submit \
             --config=infrastructure/cloudbuild/prod.yaml \
             --project=${{ secrets.GCP_PROJECT_ID }} \
+            --substitutions=SHORT_SHA=$(git rev-parse --short HEAD) \
             .
 
       - name: Run health checks
