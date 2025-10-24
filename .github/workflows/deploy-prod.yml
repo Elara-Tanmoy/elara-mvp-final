@@ -32,7 +32,6 @@ jobs:
         run: |
           gcloud builds submit \
             --config=infrastructure/cloudbuild/prod.yaml \
-            --substitutions=SHORT_SHA=${{ github.sha }},_ENVIRONMENT=prod \
             --project=${{ secrets.GCP_PROJECT_ID }} \
             .
 
