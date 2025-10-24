@@ -1,0 +1,55 @@
+﻿version: '3.8'
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: elara-postgres
+    environment:
+      POSTGRES_USER: elara
+      POSTGRES_PASSWORD: elara_dev_pass_2024
+      POSTGRES_DB: elara_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: elara-redis
+    command: redis-server --requirepass elara_redis_pass
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: elara-chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      IS_PERSISTENT: "TRUE"
+
+  neo4j:
+    image: neo4j:5.15-community
+    container_name: elara-neo4j
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    environment:
+      NEO4J_AUTH: neo4j/elara_neo4j_pass_2024
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
+      NEO4J_dbms_memory_heap_initial__size: 512m
+      NEO4J_dbms_memory_heap_max__size: 1G
+
+volumes:
+  postgres_data:
+  redis_data:
+  chroma_data:
+  neo4j_data:
+  neo4j_logs:

@@ -12,9 +12,9 @@ on:
     branches:
       - main
     paths:
-      - '../elara-platform/**'
+      - 'packages/**'
       - 'kubernetes/**'
-      - 'docker/**'
+      - 'infrastructure/**'
       - '.github/workflows/deploy-production.yml'
 
   workflow_dispatch:
@@ -58,18 +58,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Checkout Elara Platform code
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository_owner }}/elara-platform
-          path: elara-platform
-          token: ${{ secrets.GH_PAT }}
-
-      - name: Checkout GCP Infrastructure
-        uses: actions/checkout@v4
-        with:
-          path: gcp-infrastructure
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -85,15 +73,36 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          cd gcp-infrastructure
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           echo "version=v1.0.$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+
+      - name: Determine Dockerfile path
+        id: dockerfile
+        run: |
+          case "${{ matrix.service }}" in
+            backend)
+              echo "path=packages/backend/Dockerfile" >> $GITHUB_OUTPUT
+              echo "context=packages/backend" >> $GITHUB_OUTPUT
+              ;;
+            worker)
+              echo "path=packages/backend/Dockerfile" >> $GITHUB_OUTPUT
+              echo "context=packages/backend" >> $GITHUB_OUTPUT
+              ;;
+            proxy)
+              echo "path=packages/proxy-service/Dockerfile" >> $GITHUB_OUTPUT
+              echo "context=packages/proxy-service" >> $GITHUB_OUTPUT
+              ;;
+            frontend)
+              echo "path=packages/frontend/Dockerfile" >> $GITHUB_OUTPUT
+              echo "context=packages/frontend" >> $GITHUB_OUTPUT
+              ;;
+          esac
 
       - name: Build and push ${{ matrix.service }} image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: gcp-infrastructure/docker/Dockerfile.${{ matrix.service }}
+          context: ${{ steps.dockerfile.outputs.context }}
+          file: ${{ steps.dockerfile.outputs.path }}
           push: true
           tags: |
             ${{ env.GCR_REGISTRY }}/${{ env.PROJECT_ID }}/${{ matrix.service }}:${{ steps.version.outputs.version }}

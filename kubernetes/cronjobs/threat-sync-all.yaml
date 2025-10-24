@@ -1,0 +1,115 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: elara-threat-intel-sync
+  namespace: elara-backend-dev
+  labels:
+    app: elara
+    component: threat-intel-sync
+    environment: dev
+spec:
+  # Run every 5 minutes
+  schedule: "*/5 * * * *"
+
+  # Keep history of last 3 successful and 1 failed job
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+
+  # Don't start new job if previous is still running
+  concurrencyPolicy: Forbid
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: elara
+        component: threat-intel-sync
+    spec:
+      # Timeout after 10 minutes
+      activeDeadlineSeconds: 600
+
+      # Retry failed jobs twice
+      backoffLimit: 2
+
+      template:
+        metadata:
+          labels:
+            app: elara
+            component: threat-intel-sync
+        spec:
+          serviceAccountName: elara-api-sa
+          restartPolicy: OnFailure
+
+          containers:
+          - name: threat-sync
+            image: gcr.io/elara-mvp-13082025-u1/backend-api:dev-62b041f
+            imagePullPolicy: Always
+
+            command: ["/bin/sh"]
+            args:
+              - "-c"
+              - "cd /app && pnpm tsx packages/backend/src/jobs/sync-all-threat-sources.ts"
+
+            env:
+            # Database
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: elara-secrets
+                  key: database-url
+
+            # API Keys (from Secret Manager)
+            - name: VIRUSTOTAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: elara-secrets
+                  key: virustotal-api-key
+                  optional: true
+
+            - name: GOOGLE_SAFE_BROWSING_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: elara-secrets
+                  key: google-safe-browsing-api-key
+                  optional: true
+
+            - name: PHISHTANK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: elara-secrets
+                  key: phishtank-api-key
+                  optional: true
+
+            - name: ALIENVAULT_OTX_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: elara-secrets
+                  key: alienvault-otx-api-key
+                  optional: true
+
+            # Logging
+            - name: LOG_LEVEL
+              value: "info"
+
+            - name: NODE_ENV
+              value: "production"
+
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "250m"
+              limits:
+                memory: "1Gi"
+                cpu: "500m"
+
+            # Liveness probe (check if process is running)
+            livenessProbe:
+              exec:
+                command:
+                - pgrep
+                - node
+              initialDelaySeconds: 10
+              periodSeconds: 30
+              timeoutSeconds: 5
+              failureThreshold: 3
+
+          # No node selector - use regular nodes for reliability
