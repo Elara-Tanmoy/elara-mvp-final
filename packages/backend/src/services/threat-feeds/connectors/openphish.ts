@@ -87,7 +87,7 @@ export async function testOpenPhishConnection(): Promise<{ success: boolean; sam
 
     return {
       success: true,
-      sample: urls.map(url => ({ url }))
+      sample: urls.map((url: string) => ({ url }))
     };
   } catch (error: any) {
     return {

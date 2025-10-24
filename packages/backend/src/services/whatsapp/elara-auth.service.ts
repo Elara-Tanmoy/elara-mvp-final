@@ -132,7 +132,7 @@ class ElaraAuthService {
         expiresAt: this.tokenExpiry.toISOString()
       });
 
-      return this.accessToken;
+      return this.accessToken!;
     } catch (error: any) {
       logger.error('[ElaraAuth] Login failed', {
         error: error.message,
@@ -169,7 +169,7 @@ class ElaraAuthService {
 
       logger.info('[ElaraAuth] Access token refreshed successfully');
 
-      return this.accessToken;
+      return this.accessToken!;
     } catch (error: any) {
       logger.error('[ElaraAuth] Token refresh failed', {
         error: error.message,

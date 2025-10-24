@@ -68,6 +68,7 @@
         "@types/papaparse": "^5.3.14",
         "@types/pdf-parse": "^1.1.4",
         "@types/pg": "^8.11.10",
+        "@types/whois-json": "^2.0.1",
         "@types/ws": "^8.5.13",
         "@typescript-eslint/eslint-plugin": "^7.18.0",
         "@typescript-eslint/parser": "^7.18.0",

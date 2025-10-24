@@ -1,11 +1,11 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import crypto from 'crypto';
 import { logger } from '../config/logger.js';
 
 const SALT_ROUNDS = 12;
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30m';
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '30m') as string | number;
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
 export interface JWTPayload {
@@ -37,7 +37,8 @@ export const verifyPassword = async (
 };
 
 export const generateAccessToken = (payload: JWTPayload): string => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  const options: SignOptions = { expiresIn: JWT_EXPIRES_IN as any };
+  return jwt.sign(payload, JWT_SECRET, options);
 };
 
 export const generateRefreshToken = (): string => {

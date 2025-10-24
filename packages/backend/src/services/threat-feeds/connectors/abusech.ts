@@ -323,7 +323,7 @@ export async function syncSSLBlacklist(sourceId: string): Promise<AbusechStats> 
           discovered_at: new Date().toISOString()
         }
       };
-    }).filter(indicator => indicator !== null);
+    }).filter((indicator: any): indicator is NonNullable<typeof indicator> => indicator !== null);
 
     const stats = await batchProcessThreats(indicators, sourceId, 1000);
 

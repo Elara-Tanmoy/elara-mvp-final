@@ -36,6 +36,9 @@ import { SecurityHeadersAnalyzer } from '../scoring/security-headers.js';
 import { OutputFormatter } from '../../utils/output-formatter.js';
 // PHASE 1 ENHANCEMENT: Trust Graph for network analysis
 import { trustGraphService } from '../graph/trustGraphService.js';
+// Database and encryption
+import { prisma } from '../../config/database.js';
+import { apiKeyEncryption } from '../apiKeyEncryption.service.js';
 
 interface URLScanResult {
   url: string;
@@ -1278,6 +1281,7 @@ export class EnhancedURLScanner {
       // 2. Analyze network connections
       // const networkAnalysis = await trustGraphService.analyzeNetwork(url.hostname);
 
+      /* DISABLED - Network analysis code below requires Neo4j
       // 3. Process risk assessment
       if (networkAnalysis.riskAssessment) {
         score = networkAnalysis.riskAssessment.score;
@@ -1369,6 +1373,7 @@ export class EnhancedURLScanner {
       });
 
       logger.info(`✅ Trust Graph analysis complete: Risk score ${score}/${maxScore}, network size ${networkAnalysis.networkSize}`);
+      */
     } catch (error) {
       logger.error('Trust Graph network analysis failed:', error);
       findings.push({
@@ -1458,7 +1463,7 @@ export class EnhancedURLScanner {
         networkInfo: categories.find(c => c.name === 'Network Analysis')
       };
 
-      const analysisPromises = models.map(model => {
+      const analysisPromises = models.map((model: any) => {
         const apiKey = model.apiKey ? apiKeyEncryption.decrypt(model.apiKey) : undefined;
         const prompt = `Analyze the following URL and its scan data: ${JSON.stringify(scanData, null, 2)}`;
         return aiService.queryConfiguredModel({ ...model, apiKey }, prompt);
@@ -1478,12 +1483,13 @@ export class EnhancedURLScanner {
       };
 
       // Basic consensus logic (can be improved)
-      const verdicts = results.map(r => (r.status === 'fulfilled' ? (r.value as any).verdict : 'unknown')).filter(v => v !== 'unknown');
+      const verdicts = results.map((r: PromiseSettledResult<any>) => (r.status === 'fulfilled' ? (r.value as any).verdict : 'unknown')).filter((v: string) => v !== 'unknown');
       if (verdicts.length > 0) {
-        const verdictCounts = verdicts.reduce((acc, v) => ({ ...acc, [v]: (acc[v] || 0) + 1 }), {} as Record<string, number>);
-        const [topVerdict, count] = Object.entries(verdictCounts).sort((a, b) => b[1] - a[1])[0];
+        const verdictCounts = verdicts.reduce((acc: Record<string, number>, v: string) => ({ ...acc, [v]: ((acc as Record<string, number>)[v] || 0) + 1 }), {} as Record<string, number>);
+        const entries = Object.entries(verdictCounts).sort((a, b) => (b[1] as number) - (a[1] as number));
+        const [topVerdict, count] = entries[0];
         consensus.consensus.verdict = topVerdict;
-        consensus.consensus.agreement = count / verdicts.length;
+        consensus.consensus.agreement = (count as number) / verdicts.length;
         consensus.consensus.summary = `Consensus verdict is ${topVerdict} with ${Math.round(consensus.consensus.agreement * 100)}% agreement.`;
       }
 

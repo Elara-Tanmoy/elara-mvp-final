@@ -212,6 +212,9 @@ importers:
       '@types/pg':
         specifier: ^8.11.10
         version: 8.15.5
+      '@types/whois-json':
+        specifier: ^2.0.1
+        version: 2.0.4
       '@types/ws':
         specifier: ^8.5.13
         version: 8.18.1
@@ -1710,6 +1713,9 @@ packages:
 
   '@types/uuid@10.0.0':
     resolution: {integrity: sha512-7gqG38EyHgyP1S+7+xomFtL+ZNHcKv6DwNaCZmJmo1vgMugyF3TCnXVg4t1uk89mLNwnLtnY3TpOpCOyp1/xHQ==}
+
+  '@types/whois-json@2.0.4':
+    resolution: {integrity: sha512-Pp5N/+A6LUE0FWXz6wQ2gV5wEw0uEqFBeSLuQAGdeTyRJv/bbz7PPj3H78jyulvQu7cnMpXTzKx4bo8TuPAYhw==}
 
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
@@ -6876,6 +6882,8 @@ snapshots:
 
   '@types/uuid@10.0.0': {}
 
+  '@types/whois-json@2.0.4': {}
+
   '@types/ws@8.18.1':
     dependencies:
       '@types/node': 20.19.23
@@ -9339,7 +9347,7 @@ snapshots:
 
   nopt@3.0.6:
     dependencies:
-      abbrev: 1.0.9
+      abbrev: 1.1.1
 
   nopt@5.0.0:
     dependencies:
