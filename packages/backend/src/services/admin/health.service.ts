@@ -1,7 +1,7 @@
 import { prisma } from '../../config/database.js';
 import { redis } from '../../config/redis.js';
 import { scanQueue } from '../queue/scan.queue.js';
-import { threatIntelService } from '../threat-intel/threat-intel.service.js';
+import { threatIntelService } from '../threat-intel/threatIntelService.js';
 
 class AdminHealthService {
   async getSystemHealth() {

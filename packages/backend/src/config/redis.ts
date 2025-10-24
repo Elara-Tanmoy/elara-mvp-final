@@ -74,7 +74,7 @@ if (process.env.REDIS_URL) {
       console.log('[Redis] Connection closed');
     });
 
-    redisClient.on('reconnecting', (delay) => {
+    redisClient.on('reconnecting', (delay: any) => {
       reconnectCount++;
       if (reconnectCount <= 3) {
         console.log(`[Redis] Reconnecting... (attempt ${reconnectCount}, delay: ${delay}ms)`);

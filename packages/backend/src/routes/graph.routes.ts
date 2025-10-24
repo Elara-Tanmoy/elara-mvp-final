@@ -7,7 +7,7 @@
 import { Router } from 'express';
 import { graphController } from '../controllers/graph.controller.js';
 
-const router = Router();
+const router: any = Router();
 
 // GET /api/v2/graph/entity/:domain - Get entity information for a domain (alias for network)
 router.get('/entity/:domain', (req, res) => graphController.getNetworkAnalysis(req, res));

@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../config/database.js';
 import { logger } from '../../config/logger.js';
 
 /**

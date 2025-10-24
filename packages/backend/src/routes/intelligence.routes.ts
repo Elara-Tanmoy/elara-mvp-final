@@ -11,7 +11,7 @@ import { Router } from 'express';
 import { intelligenceController } from '../controllers/intelligence.controller.js';
 import { authenticate, requireAdmin } from '../middleware/auth.middleware.js';
 
-const router = Router();
+const router: any = Router();
 
 // Apply authentication and admin-only access to all routes
 router.use(authenticate);

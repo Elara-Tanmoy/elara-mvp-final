@@ -190,7 +190,7 @@ class WhatsAppAdminController {
         })
       ]);
 
-      const tierBreakdown = tierStats.reduce((acc, t) => {
+      const tierBreakdown = tierStats.reduce((acc: any, t: any) => {
         acc[t.tier] = t._count;
         return acc;
       }, {} as Record<string, number>);

@@ -8,7 +8,7 @@ import { Router } from 'express';
 import { threatIntelController } from '../controllers/threatIntel.controller.js';
 import { authenticate, requireAdmin } from '../middleware/auth.middleware.js';
 
-const router = Router();
+const router: any = Router();
 
 // All routes require admin access
 router.use(authenticate);

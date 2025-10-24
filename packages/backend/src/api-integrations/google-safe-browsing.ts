@@ -50,8 +50,8 @@ export async function checkURL(url: string): Promise<SafeBrowsingResult> {
     const matches = response.data.matches || [];
     const listed = matches.length > 0;
 
-    const threatTypes = [...new Set(matches.map((m: any) => m.threatType))];
-    const platformTypes = [...new Set(matches.map((m: any) => m.platformType))];
+    const threatTypes: string[] = Array.from(new Set(matches.map((m: any) => m.threatType))) as string[];
+    const platformTypes: string[] = Array.from(new Set(matches.map((m: any) => m.platformType))) as string[];
 
     logger.info(`[Google Safe Browsing] ${url}: ${listed ? 'LISTED' : 'CLEAN'} (${threatTypes.join(', ')})`);
 

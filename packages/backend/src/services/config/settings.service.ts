@@ -12,11 +12,10 @@
  * - Version history tracking
  */
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../config/database.js';
 import { apiKeyEncryption } from '../apiKeyEncryption.service.js';
 import { logger } from '../../config/logger.js';
 
-const prisma = new PrismaClient();
 
 // In-memory cache
 interface CachedSetting {

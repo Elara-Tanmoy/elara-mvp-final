@@ -258,7 +258,7 @@ class DataCaptureService {
 
       return {
         totalEvents,
-        eventsByType: eventsByType.reduce((acc, item) => {
+        eventsByType: eventsByType.reduce((acc: any, item: any) => {
           acc[item.eventType] = item._count;
           return acc;
         }, {} as Record<string, number>),
@@ -268,7 +268,7 @@ class DataCaptureService {
           earliest: dateRange._min.timestamp || new Date(),
           latest: dateRange._max.timestamp || new Date(),
         },
-        topRiskLevels: riskLevels.map((r) => ({
+        topRiskLevels: riskLevels.map((r: any) => ({
           level: r.riskLevel || 'unknown',
           count: r._count,
         })),

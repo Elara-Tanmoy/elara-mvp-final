@@ -5,11 +5,10 @@
  * Provides configuration for AI Consensus Orchestrator
  */
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../config/database.js';
 import { apiKeyEncryption } from '../apiKeyEncryption.service.js';
 import { logger } from '../../config/logger.js';
 
-const prisma = new PrismaClient();
 
 interface AIModelConfig {
   modelId: string;

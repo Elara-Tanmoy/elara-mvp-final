@@ -7,7 +7,7 @@ if (!process.env.REDIS_URL) {
     on: () => {},
     quit: async () => {}
   };
-  global.redisClient = mockRedis;
+  (global as any).redisClient = mockRedis;
   console.log('[PRODUCTION] Redis bypassed - using mock');
 }
 
@@ -70,7 +70,7 @@ console.log('[IMPORT TRACE] ========================================');
 console.log('[IMPORT TRACE] ALL IMPORTS COMPLETED SUCCESSFULLY');
 console.log('[IMPORT TRACE] ========================================');
 
-const app = express();
+const app: any = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 3001;
 
@@ -110,7 +110,7 @@ const allowedOrigins = [
   'https://elara-7c108p1d1-tanmoys-projects-1b158c68.vercel.app',
   'https://elara-mvp.vercel.app',
   process.env.CORS_ORIGIN
-].filter(Boolean);
+].filter((origin): origin is string => typeof origin === 'string');
 
 const corsOrigins = process.env.CORS_ORIGIN
   ? [...new Set([...allowedOrigins, ...process.env.CORS_ORIGIN.split(',').filter(Boolean)])]
@@ -131,7 +131,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(globalRateLimiter);
 
 // Request logging middleware
-app.use((req, res, next) => {
+app.use((req: any, res: any, next: any) => {
   logger.info(`${req.method} ${req.path}`, {
     ip: req.ip,
     userAgent: req.get('user-agent')
@@ -140,7 +140,7 @@ app.use((req, res, next) => {
 });
 
 // Health check endpoint (for Render.com health checks at /health)
-app.get('/health', async (req, res) => {
+app.get('/health', async (req: any, res: any) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     res.json({

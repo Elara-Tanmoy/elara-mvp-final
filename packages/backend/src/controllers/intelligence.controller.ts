@@ -376,7 +376,7 @@ export class IntelligenceController {
         analytics: {
           eventTrends,
           topSearches,
-          riskDistribution: riskDistribution.map((r) => ({
+          riskDistribution: riskDistribution.map((r: any) => ({
             level: r.riskLevel || 'unknown',
             count: r._count,
             avgScore: r._avg.riskScore,

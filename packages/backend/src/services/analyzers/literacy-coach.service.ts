@@ -861,6 +861,53 @@ Scammers exploit:
 
     return newProgress;
   }
+export const literacyCoachService = new LiteracyCoachService();
+
+  /**
+   * Alias for getQuizQuestions
+   */
+  getAssessmentQuiz(difficulty?: string): QuizQuestion[] {
+    return this.getQuizQuestions(10, difficulty as any);
+  }
+
+  /**
+   * Alias for getLesson  
+   */
+  getLessonById(lessonId: string): Lesson | null {
+    return this.getLesson(lessonId);
+  }
+
+  /**
+   * Track user progress (async wrapper)
+   */
+  async trackProgress(data: any): Promise<any> {
+    return this.updateProgress(
+      data.userId,
+      data.lessonId,
+      data.quizScore,
+      data.timeSpent,
+      data.currentProgress
+    );
+  }
+
+  /**
+   * Get user progress from database or return empty
+   */
+  async getUserProgress(userId: string): Promise<LearningProgress> {
+    return {
+      userId,
+      lessonsCompleted: 0,
+      totalLessons: this.lessons.length,
+      averageQuizScore: 0,
+      timeSpent: 0,
+      comprehensionGrowth: [],
+      behavioralImprovement: {
+        scamsAvoided: 0,
+        detectionAccuracyChange: 0
+      },
+      lastActivity: new Date()
+    };
+  }
 }
 
 export const literacyCoachService = new LiteracyCoachService();

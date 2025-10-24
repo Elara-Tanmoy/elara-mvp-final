@@ -1,10 +1,9 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/database.js';
 import { logger } from '../config/logger.js';
 import { AuthRequest } from '../middleware/auth.middleware.js';
 import axios from 'axios';
 
-const prisma = new PrismaClient();
 
 // Proxy service URL from environment
 const PROXY_SERVICE_URL = process.env.PROXY_SERVICE_URL || 'http://localhost:8080';
@@ -709,7 +708,7 @@ export class ProxyController {
       const successfulRequests = requests.filter(r => r.success).length;
       const failedRequests = requests.filter(r => !r.success).length;
       const avgResponseTime = requests.length > 0
-        ? requests.reduce((sum, r) => sum + (r.responseTime || 0), 0) / requests.length
+        ? requests.reduce((sum: any, r: any) => sum + (r.responseTime || 0), 0) / requests.length
         : 0;
 
       const duration = session.endedAt

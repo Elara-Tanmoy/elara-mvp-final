@@ -17,7 +17,7 @@ import {
   getCacheStats
 } from '../../controllers/admin/globalSettings.controller.js';
 
-const router = Router();
+const router: any = Router();
 
 // Get all settings (with optional category filter)
 router.get('/', getAllSettings);

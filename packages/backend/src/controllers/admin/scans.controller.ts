@@ -249,11 +249,11 @@ export class AdminScansController {
 
       const stats = {
         total,
-        riskDistribution: riskDistribution.reduce((acc, item) => {
+        riskDistribution: riskDistribution.reduce((acc: any, item: any) => {
           acc[item.riskLevel] = item._count;
           return acc;
         }, {} as Record<string, number>),
-        reachabilityDistribution: reachabilityDistribution.reduce((acc, item) => {
+        reachabilityDistribution: reachabilityDistribution.reduce((acc: any, item: any) => {
           acc[item.reachabilityState] = item._count;
           return acc;
         }, {} as Record<string, number>),

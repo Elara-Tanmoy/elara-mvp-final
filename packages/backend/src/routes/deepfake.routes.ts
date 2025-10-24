@@ -7,7 +7,7 @@
 import { Router } from 'express';
 import { deepfakeController } from '../controllers/deepfake.controller.js';
 
-const router = Router();
+const router: any = Router();
 
 // POST /api/v2/ai/detect-deepfake - Comprehensive deepfake analysis
 router.post('/detect-deepfake', (req, res) => deepfakeController.detectDeepfake(req, res));
