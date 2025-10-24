@@ -1,7 +1,11 @@
 # Multi-stage Dockerfile for Elara Backend (Production)
+# Supports monorepo structure with root build context
 
 # Stage 1: Build stage
 FROM node:18-alpine AS builder
+
+# Build arg for package path (defaults to packages/backend for monorepo)
+ARG PACKAGE_PATH=packages/backend
 
 # Set working directory
 WORKDIR /app
@@ -9,15 +13,22 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
-COPY prisma ./prisma/
+# Copy root package files (for monorepo workspace)
+COPY pnpm-lock.yaml package.json* ./
+
+# Copy package-specific files
+COPY ${PACKAGE_PATH}/package.json ./backend-package.json
+COPY ${PACKAGE_PATH}/prisma ./prisma/
+
+# Move backend package.json to correct location
+RUN mv backend-package.json package.json
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
 # Copy source code
-COPY . .
+COPY ${PACKAGE_PATH}/src ./src
+COPY ${PACKAGE_PATH}/tsconfig.json* ./
 
 # Generate Prisma Client
 RUN pnpm prisma generate

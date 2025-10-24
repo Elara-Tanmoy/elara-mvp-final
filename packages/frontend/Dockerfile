@@ -1,7 +1,11 @@
 # Multi-stage Dockerfile for Elara Frontend (Production)
+# Supports monorepo structure with root build context
 
 # Stage 1: Build stage
 FROM node:20-alpine AS builder
+
+# Build arg for package path (defaults to packages/frontend for monorepo)
+ARG PACKAGE_PATH=packages/frontend
 
 # Set working directory
 WORKDIR /app
@@ -9,14 +13,20 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
+# Copy root package files (for monorepo workspace)
+COPY pnpm-lock.yaml package.json* ./
+
+# Copy package-specific files
+COPY ${PACKAGE_PATH}/package.json ./frontend-package.json
+
+# Move frontend package.json to correct location
+RUN mv frontend-package.json package.json
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
 # Copy source code
-COPY . .
+COPY ${PACKAGE_PATH}/. .
 
 # Build application
 ARG VITE_API_URL
