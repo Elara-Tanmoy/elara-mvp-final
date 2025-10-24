@@ -31,7 +31,7 @@ steps:
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/backend-api:${_ENV}-latest'
       - '-f'
-      - 'gcp-infrastructure/docker/Dockerfile.backend'
+      - 'packages/backend/Dockerfile'
       - '.'
     waitFor: ['-']
 
@@ -47,7 +47,7 @@ steps:
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/worker:${_ENV}-latest'
       - '-f'
-      - 'gcp-infrastructure/docker/Dockerfile.worker'
+      - 'packages/backend/Dockerfile'
       - '.'
     waitFor: ['-']
 
@@ -63,7 +63,7 @@ steps:
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/proxy:${_ENV}-latest'
       - '-f'
-      - 'gcp-infrastructure/docker/Dockerfile.proxy'
+      - 'packages/proxy-service/Dockerfile'
       - '.'
     waitFor: ['-']
 
@@ -81,7 +81,7 @@ steps:
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/frontend:${_ENV}-latest'
       - '-f'
-      - 'gcp-infrastructure/docker/Dockerfile.frontend'
+      - 'packages/frontend/Dockerfile'
       - '.'
     waitFor: ['-']
 
