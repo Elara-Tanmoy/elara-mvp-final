@@ -125,7 +125,7 @@ steps:
     args:
       - '-c'
       - |
-        kubectl set image deployment/elara-api elara-api=gcr.io/${_PROJECT_ID}/backend-api:${_ENV}-${SHORT_SHA} -n ${_NAMESPACE_BACKEND} || echo "Deployment may not exist yet"
+        kubectl set image deployment/elara-api api=gcr.io/${_PROJECT_ID}/backend-api:${_ENV}-${SHORT_SHA} -n ${_NAMESPACE_BACKEND} || echo "Deployment may not exist yet"
         kubectl rollout status deployment/elara-api -n ${_NAMESPACE_BACKEND} --timeout=5m || echo "Rollout status check skipped"
     env:
       - 'CLOUDSDK_COMPUTE_REGION=${_REGION}'
@@ -139,7 +139,7 @@ steps:
     args:
       - '-c'
       - |
-        kubectl set image deployment/elara-worker elara-worker=gcr.io/${_PROJECT_ID}/worker:${_ENV}-${SHORT_SHA} -n ${_NAMESPACE_WORKERS} || echo "Deployment may not exist yet"
+        kubectl set image deployment/elara-worker worker=gcr.io/${_PROJECT_ID}/worker:${_ENV}-${SHORT_SHA} -n ${_NAMESPACE_WORKERS} || echo "Deployment may not exist yet"
         kubectl rollout status deployment/elara-worker -n ${_NAMESPACE_WORKERS} --timeout=5m || echo "Rollout status check skipped"
     env:
       - 'CLOUDSDK_COMPUTE_REGION=${_REGION}'
@@ -153,7 +153,7 @@ steps:
     args:
       - '-c'
       - |
-        kubectl set image deployment/elara-proxy elara-proxy=gcr.io/${_PROJECT_ID}/proxy:${_ENV}-${SHORT_SHA} -n ${_NAMESPACE_PROXY} || echo "Deployment may not exist yet"
+        kubectl set image deployment/elara-proxy proxy=gcr.io/${_PROJECT_ID}/proxy:${_ENV}-${SHORT_SHA} -n ${_NAMESPACE_PROXY} || echo "Deployment may not exist yet"
         kubectl rollout status deployment/elara-proxy -n ${_NAMESPACE_PROXY} --timeout=5m || echo "Rollout status check skipped"
     env:
       - 'CLOUDSDK_COMPUTE_REGION=${_REGION}'
@@ -167,7 +167,7 @@ steps:
     args:
       - '-c'
       - |
-        kubectl set image deployment/elara-frontend elara-frontend=gcr.io/${_PROJECT_ID}/frontend:${_ENV}-${SHORT_SHA} -n ${_NAMESPACE_FRONTEND} || echo "Deployment may not exist yet"
+        kubectl set image deployment/elara-frontend frontend=gcr.io/${_PROJECT_ID}/frontend:${_ENV}-${SHORT_SHA} -n ${_NAMESPACE_FRONTEND} || echo "Deployment may not exist yet"
         kubectl rollout status deployment/elara-frontend -n ${_NAMESPACE_FRONTEND} --timeout=5m || echo "Rollout status check skipped"
     env:
       - 'CLOUDSDK_COMPUTE_REGION=${_REGION}'
