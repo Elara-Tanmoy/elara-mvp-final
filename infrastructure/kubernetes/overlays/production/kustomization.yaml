@@ -1,0 +1,48 @@
+# ==============================================================================
+# ELARA PLATFORM - PRODUCTION OVERLAY
+# ==============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: elara-backend
+
+# Base resources
+bases:
+  - ../../base
+
+# Production-specific resources
+resources:
+  - configmap.yaml
+  - ingress.yaml
+  - service-accounts.yaml
+
+# Production images with specific tags
+images:
+  - name: gcr.io/elara-mvp-13082025-u1/backend-api
+    newTag: v1.0.0  # Will be updated by CI/CD
+  - name: gcr.io/elara-mvp-13082025-u1/worker
+    newTag: v1.0.0  # Will be updated by CI/CD
+  - name: gcr.io/elara-mvp-13082025-u1/proxy
+    newTag: v1.0.0  # Will be updated by CI/CD
+
+# Common labels for production
+commonLabels:
+  environment: production
+  app.kubernetes.io/version: "1.0.0"
+
+# Common annotations
+commonAnnotations:
+  deployed-by: "github-actions"
+  deployment-date: "2025-01-12"
+
+# Patches for production-specific configuration
+patchesStrategicMerge:
+  - replica-count-patch.yaml
+
+# ConfigMap generator (secrets will be created via scripts)
+configMapGenerator:
+  - name: elara-config
+    behavior: merge
+    literals:
+      - NODE_ENV=production

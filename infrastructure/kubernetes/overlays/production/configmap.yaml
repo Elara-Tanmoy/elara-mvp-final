@@ -1,0 +1,50 @@
+# ==============================================================================
+# ELARA PLATFORM - PRODUCTION CONFIGMAP
+# ==============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elara-config
+  namespace: elara-backend
+  labels:
+    app: elara
+    environment: production
+data:
+  # Server Configuration
+  NODE_ENV: "production"
+  PORT: "3001"
+
+  # CORS
+  CORS_ORIGIN: "https://elara.com,https://www.elara.com,https://api.elara.com"
+
+  # ChromaDB
+  CHROMADB_URL: "http://chromadb-service.elara-backend.svc.cluster.local:8000"
+
+  # Rate Limiting
+  RATE_LIMIT_FREE: "100"
+  RATE_LIMIT_PRO: "1000"
+  RATE_LIMIT_ENTERPRISE: "10000"
+
+  # File Upload
+  MAX_FILE_SIZE: "52428800"  # 50MB
+  UPLOAD_DIR: "/tmp/uploads"
+
+  # WhatsApp Rate Limiting
+  WHATSAPP_FREE_TIER_DAILY_LIMIT: "5"
+  WHATSAPP_PREMIUM_TIER_DAILY_LIMIT: "50"
+  WHATSAPP_ENTERPRISE_TIER_DAILY_LIMIT: "-1"
+
+  # JWT
+  JWT_EXPIRES_IN: "30m"
+  REFRESH_TOKEN_EXPIRES_IN: "7d"
+
+  # Webhook
+  WEBHOOK_BASE_URL: "https://api.elara.com"
+
+  # Logging
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+
+  # Elara API Base URL (for WhatsApp bot)
+  ELARA_API_BASE_URL: "https://api.elara.com/api"

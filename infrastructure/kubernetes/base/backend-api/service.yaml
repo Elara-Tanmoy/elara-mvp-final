@@ -1,0 +1,28 @@
+# ==============================================================================
+# ELARA BACKEND API - SERVICE
+# ==============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: elara-api-service
+  namespace: elara-backend
+  labels:
+    app: elara-api
+    component: backend
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"default": "elara-backend-config"}'
+spec:
+  type: ClusterIP
+  selector:
+    app: elara-api
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3001
+    protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours

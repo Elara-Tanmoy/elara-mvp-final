@@ -1,0 +1,13 @@
+# PostgreSQL Namespace
+# Self-managed PostgreSQL on GKE for cost optimization
+# Savings: $1,926/month vs Cloud SQL
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elara-database
+  labels:
+    name: elara-database
+    environment: production
+    component: database
+    cost-center: infrastructure

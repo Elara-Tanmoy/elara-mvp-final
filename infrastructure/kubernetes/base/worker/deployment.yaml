@@ -1,0 +1,185 @@
+# ==============================================================================
+# ELARA BULLMQ WORKER - DEPLOYMENT
+# ==============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elara-worker
+  namespace: elara-workers
+  labels:
+    app: elara-worker
+    component: worker
+    tier: background
+spec:
+  replicas: 5  # Will be overridden by HPA
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: elara-worker
+  template:
+    metadata:
+      labels:
+        app: elara-worker
+        component: worker
+        tier: background
+    spec:
+      serviceAccountName: elara-worker-sa
+
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      # Init container to wait for Redis
+      initContainers:
+      - name: wait-for-redis
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z -v -w30 $REDIS_HOST 6379; do echo "Waiting for Redis..."; sleep 5; done']
+        env:
+        - name: REDIS_HOST
+          valueFrom:
+            secretKeyRef:
+              name: elara-secrets
+              key: redis-host
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+
+      containers:
+      - name: worker
+        image: gcr.io/elara-mvp-13082025-u1/worker:latest
+        imagePullPolicy: Always
+
+        # Environment variables from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: elara-config
+
+        # Environment variables from Secrets (same as API)
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: elara-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: elara-secrets
+              key: redis-url
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: elara-secrets
+              key: anthropic-api-key
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: elara-secrets
+              key: openai-api-key
+        - name: GOOGLE_AI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: elara-secrets
+              key: google-ai-api-key
+        - name: HUGGINGFACE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: elara-secrets
+              key: huggingface-api-key
+        - name: GROK_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: elara-secrets
+              key: grok-api-key
+        - name: VIRUSTOTAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: elara-secrets
+              key: virustotal-api-key
+        - name: GOOGLE_SAFE_BROWSING_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: elara-secrets
+              key: google-safe-browsing-api-key
+        - name: ABUSEIPDB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: elara-secrets
+              key: abuseipdb-api-key
+
+        # Resource limits (higher for workers)
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 2Gi
+          limits:
+            cpu: 4000m
+            memory: 4Gi
+
+        # Health checks (workers don't expose HTTP, use exec)
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pgrep -f node || exit 1
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pgrep -f node || exit 1
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 2
+
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop: ["ALL"]
+
+        # Volume mounts
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: uploads
+          mountPath: /app/uploads
+
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: uploads
+        emptyDir:
+          sizeLimit: 10Gi
+
+      # Node affinity
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - elara-worker
+              topologyKey: kubernetes.io/hostname

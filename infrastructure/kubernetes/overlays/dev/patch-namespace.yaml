@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elara-api
+  namespace: elara-backend-dev
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elara-worker
+  namespace: elara-workers-dev
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elara-proxy
+  namespace: elara-proxy-dev
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elara-frontend
+  namespace: elara-frontend-dev

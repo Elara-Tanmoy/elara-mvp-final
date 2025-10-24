@@ -1,0 +1,2 @@
+-- Migration disabled: whatsapp_messages table no longer exists in schema
+-- This migration has been intentionally emptied to allow other migrations to proceed

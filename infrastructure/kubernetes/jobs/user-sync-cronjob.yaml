@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sync-users-prod-to-staging
+  namespace: default
+spec:
+  schedule: "*/5 * * * *"  # Every 5 minutes
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: user-sync
+            image: postgres:15-alpine
+            command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Starting user sync from production to staging..."
+
+              # Sync Organization table FIRST (users have FK to organizations)
+              psql "$PROD_DB" -c "
+                COPY (
+                  SELECT * FROM \"Organization\"
+                ) TO STDOUT
+              " | psql "$STAGING_DB" -c "
+                CREATE TEMP TABLE org_temp (LIKE \"Organization\" INCLUDING ALL);
+                COPY org_temp FROM STDIN;
+                INSERT INTO \"Organization\"
+                SELECT * FROM org_temp
+                ON CONFLICT (id) DO NOTHING;
+              "
+
+              # Then sync User table
+              psql "$PROD_DB" -c "
+                COPY (
+                  SELECT * FROM \"User\"
+                ) TO STDOUT
+              " | psql "$STAGING_DB" -c "
+                CREATE TEMP TABLE user_temp (LIKE \"User\" INCLUDING ALL);
+                COPY user_temp FROM STDIN;
+                INSERT INTO \"User\"
+                SELECT * FROM user_temp
+                ON CONFLICT (id) DO NOTHING;
+              "
+
+              echo "Sync completed successfully!"
+
+              # Show sync stats
+              echo "Production users:" $(psql "$PROD_DB" -t -c "SELECT COUNT(*) FROM \"User\"")
+              echo "Staging users:" $(psql "$STAGING_DB" -t -c "SELECT COUNT(*) FROM \"User\"")
+            env:
+            - name: PROD_DB
+              value: "postgresql://elara_app:Z7k?gnNU57b9QxmfuDpAsCSqTHZI&8Yg@10.190.1.5:5432/elara_production"
+            - name: STAGING_DB
+              value: "postgresql://elara_app:Z7k?gnNU57b9QxmfuDpAsCSqTHZI&8Yg@10.190.1.5:5432/elara_staging"

@@ -1,0 +1,37 @@
+{
+  "name": "elara-platform",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --parallel --stream run dev",
+    "build": "pnpm --recursive run build",
+    "backend:dev": "pnpm --filter @elara/backend dev",
+    "frontend:dev": "pnpm --filter @elara/frontend dev",
+    "admin:dev": "pnpm --filter @elara/admin dev",
+    "db:migrate": "pnpm --filter @elara/backend db:migrate",
+    "db:studio": "pnpm --filter @elara/backend db:studio",
+    "db:generate": "pnpm --filter @elara/backend db:generate",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "test": "pnpm --recursive run test",
+    "lint": "pnpm --recursive run lint",
+    "clean": "pnpm --recursive run clean"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.4.1",
+    "prettier": "^3.2.5",
+    "sql.js": "^1.13.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1"
+  }
+}

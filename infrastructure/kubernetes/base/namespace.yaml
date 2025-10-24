@@ -1,0 +1,35 @@
+# ==============================================================================
+# ELARA PLATFORM - KUBERNETES NAMESPACES
+# ==============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elara-backend
+  labels:
+    name: elara-backend
+    project: elara
+    environment: production
+    managed-by: kustomize
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elara-workers
+  labels:
+    name: elara-workers
+    project: elara
+    environment: production
+    managed-by: kustomize
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elara-proxy
+  labels:
+    name: elara-proxy
+    project: elara
+    environment: production
+    managed-by: kustomize

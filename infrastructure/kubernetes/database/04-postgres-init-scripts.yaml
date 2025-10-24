@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  namespace: elara-backend-prod
+  labels:
+    app: postgresql
+data:
+  01-create-replication-user.sh: |
+    #!/bin/bash
+    set -e
+
+    # Create replication user
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+      -- Create replication user
+      CREATE ROLE replicator WITH REPLICATION LOGIN PASSWORD '$POSTGRES_REPLICATION_PASSWORD';
+
+      -- Grant connection privileges
+      GRANT CONNECT ON DATABASE $POSTGRES_DB TO replicator;
+
+      -- Create extensions
+      CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+      CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+      -- Log initialization
+      SELECT 'PostgreSQL initialized successfully for Elara Platform' AS status;
+    EOSQL
+
+    echo "Replication user and extensions created successfully"
+
+  02-configure-replication.sh: |
+    #!/bin/bash
+    set -e
+
+    # Update postgresql.conf for replication
+    cat >> ${PGDATA}/postgresql.conf <<EOF
+
+    # Elara Platform Replication Configuration
+    listen_addresses = '*'
+    wal_level = replica
+    max_wal_senders = 10
+    max_replication_slots = 10
+    hot_standby = on
+    EOF
+
+    # Update pg_hba.conf for replication
+    cat >> ${PGDATA}/pg_hba.conf <<EOF
+
+    # Replication connections from GKE pods
+    host    replication     replicator      10.0.0.0/8              md5
+    EOF
+
+    echo "Replication configuration completed"
+
+  03-create-monitoring-user.sh: |
+    #!/bin/bash
+    set -e
+
+    # Create monitoring user for Prometheus
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+      -- Create monitoring user
+      CREATE ROLE postgres_exporter WITH LOGIN PASSWORD '$POSTGRES_PASSWORD';
+
+      -- Grant monitoring privileges
+      GRANT pg_monitor TO postgres_exporter;
+      GRANT CONNECT ON DATABASE $POSTGRES_DB TO postgres_exporter;
+
+      SELECT 'Monitoring user created successfully' AS status;
+    EOSQL
+
+    echo "Monitoring user created"

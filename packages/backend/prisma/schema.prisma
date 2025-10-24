@@ -1,0 +1,1669 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id           String           @id @default(cuid())
+  name         String
+  tier         OrganizationTier @default(free)
+  apiKey       String           @unique @default(cuid())
+  apiSecret    String           @default(cuid())
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  auditLogs    AuditLog[]
+  datasets     Dataset[]
+  scanResults  ScanResult[]
+  subscription Subscription?
+  users        User[]
+
+  @@index([apiKey])
+  @@index([tier])
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String? // Nullable for OAuth/passkey users
+  role          UserRole @default(user)
+  firstName     String
+  lastName      String
+  isActive      Boolean  @default(true)
+  walletAddress String?  @unique // Web3 wallet for blockchain features (Phase 3)
+
+  // Social Authentication
+  authProvider   AuthProvider @default(local) // local, google, facebook, linkedin, passkey
+  googleId       String?      @unique
+  facebookId     String?      @unique
+  linkedinId     String?      @unique
+  providerData   Json? // Store additional provider data
+  profilePicture String? // Profile picture URL from OAuth
+
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  organizationId String
+
+  auditLogs    AuditLog[]
+  scanResults  ScanResult[]
+  passkeys     WebAuthnCredential[]
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([organizationId])
+  @@index([role])
+  @@index([walletAddress])
+  @@index([googleId])
+  @@index([facebookId])
+  @@index([linkedinId])
+  @@index([authProvider])
+}
+
+model ScanResult {
+  id                   String         @id @default(cuid())
+  scanType             ScanType
+  contentHash          String
+  url                  String?
+  content              String?
+  fileName             String?
+  fileSize             Int?
+  fileMimeType         String?
+  riskScore            Int            @default(0)
+  riskLevel            RiskLevel      @default(safe)
+  status               ScanStatus     @default(pending)
+  findings             Json           @default("[]")
+  aiAnalysis           Json?
+  scanDuration         Int?
+  // CRITICAL FIX: Add fields for file scanning with OCR and AI analysis
+  verdict              Json? // AI-generated verdict {simple, technical, recommendation, safetyAdvice}
+  conversationAnalysis Json? // Conversation chain analysis from screenshots
+  intentAnalysis       Json? // Intent analysis for scam detection
+  ocrText              String? // OCR-extracted text from images
+  ocrConfidence        Float? // OCR confidence score (0-100)
+  extractedText        String? // Extracted text from files (PDF, etc.)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  userId               String
+  organizationId       String
+  auditLogs            AuditLog[]
+  riskCategories       RiskCategory[]
+  organization         Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([scanType])
+  @@index([riskLevel])
+  @@index([status])
+  @@index([contentHash])
+  @@index([createdAt])
+  @@map("scan_results")
+}
+
+model RiskCategory {
+  id           String     @id @default(cuid())
+  category     String
+  score        Int        @default(0)
+  maxWeight    Int
+  findings     Json       @default("[]")
+  evidence     Json?
+  createdAt    DateTime   @default(now())
+  scanResultId String
+  scanResult   ScanResult @relation(fields: [scanResultId], references: [id], onDelete: Cascade)
+
+  @@index([scanResultId])
+  @@index([category])
+}
+
+model Dataset {
+  id             String         @id @default(cuid())
+  name           String
+  description    String?
+  fileUrl        String
+  fileName       String
+  fileSize       Int
+  rowCount       Int            @default(0)
+  columnCount    Int            @default(0)
+  status         DatasetStatus  @default(processing)
+  vectorized     Boolean        @default(false)
+  uploadedAt     DateTime       @default(now())
+  processedAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entries        DatasetEntry[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([vectorized])
+}
+
+model DatasetEntry {
+  id        String   @id @default(cuid())
+  content   String
+  vectorId  String?
+  metadata  Json     @default("{}")
+  rowNumber Int
+  createdAt DateTime @default(now())
+  datasetId String
+  dataset   Dataset  @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@index([datasetId])
+  @@index([vectorId])
+  @@index([rowNumber])
+}
+
+model AuditLog {
+  id             String        @id @default(cuid())
+  action         String
+  entityType     String
+  entityId       String?
+  details        Json          @default("{}")
+  ipAddress      String?
+  userAgent      String?
+  timestamp      DateTime      @default(now())
+  userId         String?
+  organizationId String?
+  scanResultId   String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  scanResult     ScanResult?   @relation(fields: [scanResultId], references: [id])
+  user           User?         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([action])
+  @@index([entityType])
+  @@index([timestamp])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model LiteracyQuizResult {
+  id             String        @id @default(cuid())
+  userId         String
+  score          Int
+  totalQuestions Int
+  correctAnswers Int
+  literacyLevel  LiteracyLevel
+  knowledgeGaps  String[]
+  answers        Json
+  createdAt      DateTime      @default(now())
+
+  @@index([userId])
+  @@index([literacyLevel])
+  @@index([createdAt])
+}
+
+model LiteracyProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  lessonId    String
+  completed   Boolean   @default(false)
+  timeSpent   Int       @default(0)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@index([completed])
+}
+
+model RecoveryIncident {
+  id                 String             @id @default(cuid())
+  userId             String
+  scamType           ScamType
+  description        String
+  financialLoss      Float?
+  personalInfoShared String[]
+  whenOccurred       String?
+  alreadyReported    Boolean            @default(false)
+  emotionalState     String?
+  distressLevel      DistressLevel      @default(moderate)
+  suicidalIdeation   Boolean            @default(false)
+  status             IncidentStatus     @default(reported)
+  recoveryPlanSteps  Json
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  followUps          RecoveryFollowUp[]
+
+  @@index([userId])
+  @@index([scamType])
+  @@index([distressLevel])
+  @@index([suicidalIdeation])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model RecoveryFollowUp {
+  id             String           @id @default(cuid())
+  incidentId     String
+  status         IncidentStatus
+  notes          String?
+  emotionalState String?
+  distressLevel  DistressLevel?
+  scheduledFor   DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  incident       RecoveryIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@index([scheduledFor])
+  @@index([completedAt])
+}
+
+model ChatbotConfig {
+  id                       String    @id @default(uuid()) @db.Uuid
+  name                     String    @default("Ask Elara")
+  temperature              Decimal?  @default(0.7) @db.Decimal(3, 2)
+  model                    String?   @default("claude-sonnet-4-5") @db.VarChar(100)
+  enabled                  Boolean?  @default(true)
+  createdAt                DateTime? @default(now()) @map("created_at")
+  customInstructions       String?   @map("custom_instructions")
+  enableConversationMemory Boolean?  @default(true) @map("enable_conversation_memory")
+  enableRag                Boolean?  @default(true) @map("enable_rag")
+  maxConversationHistory   Int?      @default(10) @map("max_conversation_history")
+  maxTokens                Int?      @default(2000) @map("max_tokens")
+  responseStyle            String?   @default("professional") @map("response_style") @db.VarChar(50)
+  systemPrompt             String?   @map("system_prompt")
+  updatedAt                DateTime? @updatedAt @map("updated_at")
+
+  @@map("chatbot_config")
+}
+
+model KnowledgeBase {
+  id          String    @id @default(uuid()) @db.Uuid
+  title       String    @db.VarChar(500)
+  content     String
+  source      String?   @db.VarChar(500)
+  category    String?   @db.VarChar(100)
+  // embedding   Unsupported("vector")? // Temporarily disabled for GCP migration
+  metadata    Json?
+  indexed     Boolean?  @default(false)
+  chunkIndex  Int?      @default(0) @map("chunk_index")
+  contentType String?   @default("text") @map("content_type") @db.VarChar(50)
+  createdAt   DateTime? @default(now()) @map("created_at")
+  createdBy   String?   @map("created_by")
+  totalChunks Int?      @default(1) @map("total_chunks")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@index([indexed])
+  @@map("knowledge_base")
+}
+
+model ChatSession {
+  id           String        @id @default(uuid()) @db.Uuid
+  context      Json?
+  metadata     Json?
+  rating       Int?
+  feedback     String?
+  endedAt      DateTime?     @map("ended_at")
+  lastActivity DateTime      @default(now()) @map("last_activity")
+  messageCount Int           @default(0) @map("message_count")
+  sessionToken String?       @unique @map("session_token") @db.VarChar(255)
+  startedAt    DateTime      @default(now()) @map("started_at")
+  userId       String?       @map("user_id")
+  messages     ChatMessage[]
+
+  @@index([userId])
+  @@index([sessionToken])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id               String      @id @default(uuid()) @db.Uuid
+  role             String      @db.VarChar(20)
+  content          String
+  model            String?     @db.VarChar(100)
+  latency          Int?
+  confidence       Decimal?    @db.Decimal(3, 2)
+  createdAt        DateTime    @default(now()) @map("created_at")
+  retrievedSources Json?       @map("retrieved_sources")
+  sessionId        String      @map("session_id") @db.Uuid
+  tokensUsed       Int?        @map("tokens_used")
+  session          ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("chat_messages")
+}
+
+model ChatbotTrainingData {
+  id               String    @id @default(uuid()) @db.Uuid
+  content          String?
+  status           String    @default("pending") @db.VarChar(50)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  dataType         String    @map("data_type") @db.VarChar(50)
+  errorMessage     String?   @map("error_message")
+  fileName         String?   @map("file_name") @db.VarChar(500)
+  fileSize         BigInt?   @map("file_size")
+  processedAt      DateTime? @map("processed_at")
+  processedEntries Int       @default(0) @map("processed_entries")
+  totalEntries     Int       @default(0) @map("total_entries")
+  uploadedBy       String?   @map("uploaded_by")
+
+  @@index([status])
+  @@map("chatbot_training_data")
+}
+
+model ChatbotAnalytics {
+  id                  String   @id @default(uuid()) @db.Uuid
+  date                DateTime @db.Date
+  avgRating           Decimal? @map("avg_rating") @db.Decimal(3, 2)
+  avgResponseTime     Int?     @map("avg_response_time")
+  createdAt           DateTime @default(now()) @map("created_at")
+  failedResponses     Int      @default(0) @map("failed_responses")
+  successfulResponses Int      @default(0) @map("successful_responses")
+  topTopics           Json?    @map("top_topics")
+  totalMessages       Int      @default(0) @map("total_messages")
+  totalSessions       Int      @default(0) @map("total_sessions")
+  uniqueUsers         Int      @default(0) @map("unique_users")
+
+  @@index([date])
+  @@map("chatbot_analytics")
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  organizationId       String             @unique
+  plan                 SubscriptionPlan   @default(free)
+  status               SubscriptionStatus @default(active)
+  startDate            DateTime           @default(now())
+  endDate              DateTime?
+  autoRenew            Boolean            @default(false)
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  pricePerMonth        Decimal?           @db.Decimal(10, 2)
+  features             Json               @default("{}")
+  metadata             Json               @default("{}")
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  organization         Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([plan])
+  @@index([status])
+  @@index([endDate])
+}
+
+model SystemSettings {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  category    String
+  description String?
+  isPublic    Boolean  @default(false)
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([key])
+}
+
+model RateLimitConfig {
+  id                String   @id @default(cuid())
+  tier              String   @unique
+  requestsPerMinute Int      @default(10)
+  requestsPerHour   Int      @default(100)
+  requestsPerDay    Int      @default(1000)
+  maxFileSize       Int      @default(5)
+  maxScansPerDay    Int      @default(50)
+  features          Json     @default("{}")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tier])
+}
+
+model Integration {
+  id           String    @id @default(cuid())
+  name         String    @unique
+  type         String
+  enabled      Boolean   @default(true)
+  config       Json      @default("{}")
+  status       String    @default("active")
+  lastSyncAt   DateTime?
+  errorMessage String?
+  metadata     Json      @default("{}")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([name])
+  @@index([type])
+  @@index([enabled])
+}
+
+model ApiUsage {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  endpoint       String
+  method         String
+  statusCode     Int
+  responseTime   Int
+  ipAddress      String?
+  userAgent      String?
+  requestSize    Int?
+  responseSize   Int?
+  metadata       Json     @default("{}")
+  timestamp      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([endpoint])
+  @@index([timestamp])
+  @@index([statusCode])
+  @@map("api_usage")
+}
+
+model AdminActivity {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  category   String
+  entityType String?
+  entityId   String?
+  changes    Json     @default("{}")
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+
+  @@index([adminId])
+  @@index([action])
+  @@index([category])
+  @@index([timestamp])
+}
+
+model ApiKey {
+  id             String    @id @default(cuid())
+  name           String
+  keyPrefix      String    @map("key_prefix")
+  hashedKey      String    @map("hashed_key")
+  organizationId String    @map("organization_id")
+  permissions    Json      @default("[]") // JSON array of permission strings
+  rateLimit      Int       @default(1000) @map("rate_limit")
+  expiresAt      DateTime? @map("expires_at")
+  lastUsedAt     DateTime? @map("last_used_at")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdBy      String    @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@index([keyPrefix])
+  @@index([hashedKey])
+  @@index([isActive])
+  @@map("api_keys")
+}
+
+model Webhook {
+  id              String    @id @default(cuid())
+  name            String
+  url             String
+  events          Json      @default("[]") // JSON array of event names
+  organizationId  String    @map("organization_id")
+  secret          String // Webhook signing secret
+  headers         Json?     @default("{}") // Custom headers
+  maxRetries      Int       @default(3) @map("max_retries")
+  retryDelay      Int       @default(5000) @map("retry_delay") // ms
+  isActive        Boolean   @default(true) @map("is_active")
+  lastTriggeredAt DateTime? @map("last_triggered_at")
+  failureCount    Int       @default(0) @map("failure_count")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@index([isActive])
+  @@map("webhooks")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WHATSAPP INTEGRATION - NEW MODELS
+// ═══════════════════════════════════════════════════════════════════════════
+
+model WhatsAppUser {
+  id                String   @id @default(cuid())
+  phoneNumber       String   @unique
+  displayName       String?
+  tier              String   @default("free")
+  dailyMessageLimit Int      @default(5)
+  messagesUsed      Int      @default(0)
+  lastResetAt       DateTime @default(now())
+  totalMessages     Int      @default(0)
+  threatsBlocked    Int      @default(0)
+  isActive          Boolean  @default(true)
+  onboardedAt       DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  messages WhatsAppMessage[]
+
+  @@index([phoneNumber])
+  @@map("whatsapp_users")
+}
+
+model WhatsAppMessage {
+  id              String    @id @default(cuid())
+  userId          String
+  messageSid      String    @unique
+  messageBody     String?
+  mediaCount      Int       @default(0)
+  mediaUrls       String[]  @default([])
+  riskLevel       String?
+  overallScore    Int?
+  processingTime  Int?
+  status          String    @default("received")
+  errorMessage    String?
+  scanResultIds   String[]  @default([])
+  responseMessage String?
+  analysisDetails Json?
+  createdAt       DateTime  @default(now())
+  processedAt     DateTime?
+
+  user       WhatsAppUser        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaFiles WhatsAppMediaFile[]
+
+  @@index([userId])
+  @@index([messageSid])
+  @@index([status])
+  @@index([createdAt])
+  @@index([riskLevel])
+  @@map("whatsapp_messages")
+}
+
+model WhatsAppMediaFile {
+  id            String   @id @default(cuid())
+  messageId     String
+  fileName      String?
+  fileSize      Int?
+  mimeType      String?
+  mediaUrl      String?
+  localPath     String?
+  fileData      Bytes?
+  thumbnailData Bytes?
+  scanResultId  String?
+  riskLevel     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  message WhatsAppMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([scanResultId])
+  @@index([createdAt])
+  @@map("whatsapp_media_files")
+}
+
+enum OrganizationTier {
+  free
+  pro
+  enterprise
+}
+
+enum UserRole {
+  user
+  admin
+  owner
+}
+
+enum ScanType {
+  url
+  message
+  file
+}
+
+enum RiskLevel {
+  safe
+  low
+  medium
+  high
+  critical
+}
+
+enum ScanStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum DatasetStatus {
+  processing
+  ready
+  failed
+}
+
+enum LiteracyLevel {
+  beginner
+  intermediate
+  advanced
+}
+
+enum LessonDifficulty {
+  beginner
+  intermediate
+  advanced
+}
+
+enum QuizCategory {
+  phishing
+  passwords
+  social_engineering
+  malware
+  privacy
+}
+
+enum ScamType {
+  phishing
+  investment
+  romance
+  tech_support
+  lottery
+  employment
+  other
+}
+
+enum DistressLevel {
+  low
+  moderate
+  high
+  severe
+}
+
+enum IncidentStatus {
+  reported
+  in_progress
+  resolved
+  needs_help
+}
+
+enum SubscriptionStatus {
+  active
+  expired
+  cancelled
+  suspended
+}
+
+enum SubscriptionPlan {
+  free
+  premium_monthly
+  premium_annual
+  enterprise
+}
+
+enum AuthProvider {
+  local
+  google
+  facebook
+  linkedin
+  passkey
+}
+
+model ProxySession {
+  id               String    @id @default(cuid())
+  userId           String
+  sessionToken     String    @unique @default(cuid())
+  targetUrl        String
+  status           String    @default("active") // active, disconnected, expired
+  requestCount     Int       @default(0)
+  bytesTransferred BigInt    @default(0)
+  startedAt        DateTime  @default(now())
+  endedAt          DateTime?
+  lastActivityAt   DateTime  @default(now())
+  metadata         Json      @default("{}")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([sessionToken])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model ProxyRequest {
+  id               String   @id @default(cuid())
+  sessionToken     String
+  requestUrl       String
+  method           String   @default("GET")
+  statusCode       Int?
+  bytesTransferred BigInt   @default(0)
+  responseTime     Int? // milliseconds
+  success          Boolean  @default(true)
+  errorMessage     String?
+  timestamp        DateTime @default(now())
+
+  @@index([sessionToken])
+  @@index([timestamp])
+}
+
+// PASSKEY / WEBAUTHN SUPPORT
+// Stores WebAuthn credentials for passwordless authentication
+model WebAuthnCredential {
+  id                   String   @id @default(cuid())
+  userId               String
+  credentialId         String   @unique // Base64URL encoded credential ID
+  publicKey            String // Base64URL encoded public key
+  counter              BigInt   @default(0) // Signature counter for replay protection
+  transports           String[] @default([]) // usb, nfc, ble, internal
+  aaguid               String? // Authenticator AAGUID
+  credentialDeviceType String? // singleDevice, multiDevice
+  credentialBackedUp   Boolean  @default(false)
+
+  // Friendly metadata
+  friendlyName String? // User-defined name (e.g., "Touch ID on iPhone")
+  lastUsedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([credentialId])
+  @@map("webauthn_credentials")
+}
+
+// PHASE 1 ENHANCEMENT: Predictive Scam Scoring (Temporal Analysis)
+// Tracks historical changes for each domain to detect compromise risk
+model DomainHistory {
+  id        String   @id @default(cuid())
+  domain    String
+  timestamp DateTime @default(now())
+
+  // Track infrastructure changes
+  ipAddress      String?
+  registrar      String?
+  whoisData      Json?
+  sslFingerprint String?
+  contentHash    String? // SHA-256 of homepage HTML
+  pageTitle      String?
+  technologies   String[] // Wappalyzer-style tech detection
+  paymentMethods String[]
+
+  // Risk change indicators
+  ownershipChange Boolean @default(false)
+  contentChange   Boolean @default(false)
+  ipChange        Boolean @default(false)
+  trafficSpike    Boolean @default(false)
+
+  // Predictive risk
+  riskScore    Int   @default(0)
+  anomalyScore Float @default(0.0)
+
+  createdAt DateTime @default(now())
+
+  @@index([domain, timestamp])
+  @@index([domain])
+  @@index([timestamp])
+}
+
+// DATA INTELLIGENCE PLATFORM
+// Captures all user activity for LLM training and analytics
+model IntelligenceData {
+  id             String   @id @default(cuid())
+  eventType      String   @map("event_type") // search, scan, interaction
+  userId         String   @map("user_id") // Anonymized in production
+  organizationId String?  @map("organization_id")
+  data           Json // Full event data (JSONB searchable)
+  riskScore      Float?   @map("risk_score")
+  riskLevel      String?  @map("risk_level")
+  timestamp      DateTime
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([eventType], name: "intelligence_data_event_type_idx")
+  @@index([userId], name: "intelligence_data_user_id_idx")
+  @@index([timestamp], name: "intelligence_data_timestamp_idx")
+  @@index([riskLevel], name: "intelligence_data_risk_level_idx")
+  @@index([organizationId], name: "intelligence_data_organization_id_idx")
+  @@index([eventType, timestamp], name: "intelligence_data_type_time_idx")
+  @@map("intelligence_data")
+}
+
+// THREAT INTELLIGENCE PLATFORM
+// Aggregates threat data from public sources for enhanced scanning
+
+model ThreatIntelSource {
+  id              String    @id @default(cuid())
+  name            String    @unique // PhishTank, URLhaus, OpenPhish, etc.
+  type            String // phishing, malware, spam, etc.
+  url             String? // API/feed URL
+  enabled         Boolean   @default(true)
+  lastSyncAt      DateTime? // Last successful sync
+  lastError       String? // Last error message
+  totalIndicators Int       @default(0) // Total indicators from this source
+  syncFrequency   Int       @default(3600) // Sync frequency in seconds
+  apiKey          String? // API key if required
+  metadata        Json      @default("{}")
+
+  // ENTERPRISE ENHANCEMENTS
+  defaultWeight Int     @default(5) // Default points for matches
+  priority      Int     @default(1) // Higher = checked first
+  reliability   Float   @default(0.8) // 0.0-1.0 reliability score
+  requiresAuth  Boolean @default(false)
+  rateLimit     Int?    @default(100) // Max requests per minute
+  cacheTimeout  Int     @default(3600) // Cache duration in seconds
+  autoSync      Boolean @default(true) // Auto-sync on schedule
+  description   String?
+  category      String  @default("general") // general, specialized, premium
+  costPerQuery  Float? // Cost in USD if paid API
+
+  createdBy    String?
+  lastEditedBy String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  indicators  ThreatIndicator[]
+  syncHistory ThreatFeedSync[]
+
+  @@index([name])
+  @@index([enabled])
+  @@index([type])
+  @@index([priority])
+  @@index([category])
+  @@map("threat_intel_sources")
+}
+
+model ThreatIndicator {
+  id          String    @id @default(cuid())
+  type        String // url, domain, ip, hash, email
+  value       String // The actual indicator (URL, IP, etc.)
+  valueHash   String // SHA-256 hash of value for indexing (fixes PostgreSQL index size limit)
+  threatType  String // phishing, malware, spam, c2, ransomware, etc.
+  severity    String    @default("medium") // low, medium, high, critical
+  confidence  Int       @default(50) // 0-100 confidence score
+  description String? // Threat description
+  tags        String[]  @default([]) // Additional tags
+  firstSeen   DateTime  @default(now())
+  lastSeen    DateTime  @default(now())
+  sourceId    String // Which feed this came from
+  expiresAt   DateTime? // Optional expiration
+  metadata    Json      @default("{}") // Additional data from source
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  source ThreatIntelSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([type, valueHash, sourceId])
+  @@index([type])
+  @@index([valueHash])
+  @@index([threatType])
+  @@index([severity])
+  @@index([active])
+  @@index([firstSeen])
+  @@index([expiresAt])
+  @@index([sourceId])
+  @@map("threat_indicators")
+}
+
+model ThreatFeedSync {
+  id                String    @id @default(cuid())
+  sourceId          String
+  status            String // success, failed, in_progress
+  indicatorsAdded   Int       @default(0)
+  indicatorsUpdated Int       @default(0)
+  indicatorsRemoved Int       @default(0)
+  duration          Int? // Sync duration in ms
+  errorMessage      String?
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+  metadata          Json      @default("{}")
+
+  source ThreatIntelSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("threat_feed_syncs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ADVANCED URL SCAN SCORING SYSTEM (570-Point Algorithm)
+// Enterprise-grade configuration management and analytics
+// ═══════════════════════════════════════════════════════════════════════════
+
+model ScanConfiguration {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  version     String  @default("1.0.0")
+  isActive    Boolean @default(false)
+  isDefault   Boolean @default(false)
+
+  // Core Scoring Configuration
+  maxScore        Int  @default(570) // Adjustable 100-1000
+  categoryWeights Json @default("{}") // 17 categories
+  checkWeights    Json @default("{}") // 100+ individual checks
+
+  // Algorithm Configuration
+  algorithmConfig Json @default("{}") // scoringMethod, thresholds, flags
+
+  // AI Model Configuration
+  aiModelConfig Json @default("{}") // models, weights, multiplier range
+
+  // Threat Intelligence Configuration
+  tiConfig Json @default("{}") // 11 TI API settings
+
+  // Reachability Configuration
+  reachabilityConfig Json @default("{}") // timeouts, retry settings
+
+  // Exception Rules
+  whitelistRules Json @default("[]") // Domain whitelist overrides
+  blacklistRules Json @default("[]") // Domain blacklist overrides
+
+  // Metadata
+  createdBy  String?
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relations
+  adminScans AdminUrlScan[]
+  history    ScanConfigurationHistory[]
+
+  @@index([isActive])
+  @@index([isDefault])
+  @@index([name])
+  @@index([createdAt])
+  @@map("scan_configurations")
+}
+
+model AdminUrlScan {
+  id  String @id @default(cuid())
+  url String
+
+  // Configuration Snapshot
+  configurationId       String
+  configurationSnapshot Json // Full config at scan time
+
+  // Reachability State
+  reachabilityState   ReachabilityState
+  pipelineUsed        String // FULL, PASSIVE, PARKED, WAF, SINKHOLE
+  reachabilityDetails Json              @default("{}")
+
+  // Scores
+  baseScore      Int       @default(0)
+  aiMultiplier   Float     @default(1.0)
+  finalScore     Int       @default(0)
+  activeMaxScore Int       @default(570) // Dynamic based on categories run
+  riskLevel      RiskLevel @default(safe)
+
+  // Detailed Results
+  categoryResults Json  @default("{}") // All 17 categories with sub-checks
+  aiAnalysis      Json? // 3 model verdicts + consensus
+  tiResults       Json  @default("{}") // 11 TI API results
+
+  // Exception Handling
+  exceptionsHandled   Json @default("[]")
+  falsePositiveChecks Json @default("{}") // CDN, RIOT, gov validation
+
+  // Performance Metrics
+  scanDuration       Int? // milliseconds
+  performanceMetrics Json  @default("{}") // Timing breakdown
+  cacheStatus        Json? // hit, age
+
+  // Metadata
+  scannedBy      String?
+  organizationId String?
+  notes          String?
+  tags           String[] @default([])
+  createdAt      DateTime @default(now())
+
+  // Relations
+  configuration ScanConfiguration @relation(fields: [configurationId], references: [id])
+
+  @@index([url])
+  @@index([configurationId])
+  @@index([reachabilityState])
+  @@index([riskLevel])
+  @@index([createdAt])
+  @@index([organizationId])
+  @@map("admin_url_scans")
+}
+
+model ScanConfigurationHistory {
+  id                String   @id @default(cuid())
+  configurationId   String
+  version           String
+  changes           Json // Diff of changes
+  changedBy         String?
+  changeDescription String?
+  previousSnapshot  Json? // Full config before change
+  newSnapshot       Json? // Full config after change
+  createdAt         DateTime @default(now())
+
+  configuration ScanConfiguration @relation(fields: [configurationId], references: [id], onDelete: Cascade)
+
+  @@index([configurationId])
+  @@index([createdAt])
+  @@map("scan_configuration_history")
+}
+
+model ScanWhitelistEntry {
+  id             String    @id @default(cuid())
+  domain         String
+  reason         String
+  addedBy        String?
+  expiresAt      DateTime?
+  isActive       Boolean   @default(true)
+  organizationId String?
+  metadata       Json      @default("{}")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([domain, organizationId])
+  @@index([domain])
+  @@index([isActive])
+  @@index([expiresAt])
+  @@index([organizationId])
+  @@map("scan_whitelist_entries")
+}
+
+model ScanBlacklistEntry {
+  id             String    @id @default(cuid())
+  domain         String
+  threatType     String // phishing, malware, scam
+  severity       RiskLevel @default(high)
+  reason         String
+  addedBy        String?
+  isActive       Boolean   @default(true)
+  organizationId String?
+  metadata       Json      @default("{}")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([domain, organizationId])
+  @@index([domain])
+  @@index([threatType])
+  @@index([severity])
+  @@index([isActive])
+  @@index([organizationId])
+  @@map("scan_blacklist_entries")
+}
+
+model ScanTombstone {
+  id            String    @id @default(cuid())
+  urlHash       String    @unique // SHA-256 of canonical URL
+  url           String // Original URL
+  verdict       RiskLevel @default(critical)
+  confirmedDate DateTime  @default(now())
+  source        String // sinkhole, manual, ti_consensus
+  confidence    Int       @default(100) // 0-100
+  metadata      Json      @default("{}")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([urlHash])
+  @@index([verdict])
+  @@index([source])
+  @@index([confirmedDate])
+  @@map("scan_tombstones")
+}
+
+model ReachabilityCache {
+  id           String            @id @default(cuid())
+  domain       String            @unique
+  state        ReachabilityState
+  dnsResolved  Boolean           @default(false)
+  tcpConnected Boolean           @default(false)
+  httpOk       Boolean           @default(false)
+  details      Json              @default("{}") // IP, status code, headers, etc.
+  lastChecked  DateTime          @default(now())
+  expiresAt    DateTime // TTL: 1 hour default
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([domain])
+  @@index([state])
+  @@index([expiresAt])
+  @@index([lastChecked])
+  @@map("reachability_cache")
+}
+
+model ThreatIntelligenceCache {
+  id         String   @id @default(cuid())
+  urlHash    String // SHA-256 of canonical URL
+  source     String // google_safe_browsing, virustotal, etc.
+  verdict    String // safe, malicious, suspicious
+  confidence Int      @default(50) // 0-100
+  score      Int      @default(0) // Points contributed
+  details    Json     @default("{}") // Full API response
+  expiresAt  DateTime // Varies by source: 5 min - 24 hours
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([urlHash, source])
+  @@index([urlHash])
+  @@index([source])
+  @@index([verdict])
+  @@index([expiresAt])
+  @@map("threat_intelligence_cache")
+}
+
+enum ReachabilityState {
+  ONLINE // Full analysis available
+  OFFLINE // DNS/TCP/HTTP failed - passive only
+  PARKED // Parking page detected
+  WAF_CHALLENGE // WAF/CAPTCHA detected
+  SINKHOLE // Sinkhole/takedown detected - auto-critical
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ENTERPRISE SCAN ENGINE MANAGEMENT - CHECK DEFINITIONS
+// Allows dynamic management of URL security checks
+// ═══════════════════════════════════════════════════════════════════════════
+
+model CheckDefinition {
+  id          String  @id @default(cuid())
+  checkId     String  @unique // e.g., "ssl_valid", "domain_age_check"
+  name        String // Display name
+  description String?
+  category    String // Which category it belongs to
+
+  // Check Configuration
+  checkType     String // passive, active, external_api
+  defaultPoints Int     @default(5)
+  severity      String  @default("medium") // low, medium, high, critical
+  enabled       Boolean @default(true)
+
+  // Execution Settings
+  timeout        Int      @default(5000) // milliseconds
+  retryAttempts  Int      @default(0)
+  cacheDuration  Int      @default(3600) // seconds
+  executionOrder Int      @default(100) // Lower = earlier execution
+  dependencies   String[] @default([]) // Other checkIds that must run first
+
+  // Code Configuration
+  handlerFunction String? // Function name or path
+  validationRules Json    @default("{}") // Rules for the check
+  customConfig    Json    @default("{}") // Additional check-specific config
+
+  // Metadata
+  version       String   @default("1.0.0")
+  author        String?
+  createdBy     String?
+  lastEditedBy  String?
+  tags          String[] @default([])
+  isSystemCheck Boolean  @default(false) // Cannot be deleted if true
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([checkId])
+  @@index([category])
+  @@index([enabled])
+  @@index([checkType])
+  @@map("check_definitions")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ENTERPRISE SCAN ENGINE MANAGEMENT - AI MODEL CONFIGURATION
+// Manages AI models used for URL analysis with rankings and consensus
+// ═══════════════════════════════════════════════════════════════════════════
+
+model AIModelDefinition {
+  id          String  @id @default(cuid())
+  modelId     String  @unique // e.g., "claude-sonnet-4", "gpt-4o"
+  name        String // Display name
+  provider    String // anthropic, openai, google
+  description String?
+
+  // Model Configuration
+  modelEndpoint String? // API endpoint
+  modelVersion  String? // Version identifier
+  contextWindow Int     @default(200000) // Token context window
+  apiKey        String? // Encrypted API key for the model
+
+  // Performance Characteristics
+  avgResponseTime Int    @default(2000) // milliseconds
+  reliability     Float  @default(0.95) // 0.0-1.0
+  costPer1kTokens Float? @default(0.003) // USD
+
+  // Scoring Configuration
+  enabled       Boolean @default(true)
+  weight        Float   @default(1.0) // Weight in consensus (0.0-2.0)
+  rank          Int     @default(1) // Priority ranking (1=highest)
+  minConfidence Float   @default(0.5) // Minimum confidence to use (0.0-1.0)
+
+  // Consensus Settings
+  useInConsensus  Boolean @default(true)
+  tieBreaker      Boolean @default(false) // Use as tie-breaker
+  requiredForScan Boolean @default(false) // Scan fails if this model unavailable
+  fallbackModelId String? // Model to use if this fails
+
+  // Rate Limiting
+  maxRequestsPerMin Int @default(60)
+  maxConcurrentReqs Int @default(5)
+  cooldownOnError   Int @default(5000) // milliseconds
+
+  // Capabilities
+  capabilities      String[] @default([]) // ["scam_detection", "content_analysis", "multi_modal"]
+  supportsImages    Boolean  @default(false)
+  supportsStreaming Boolean  @default(false)
+  supportsJsonMode  Boolean  @default(false)
+
+  // Metadata
+  createdBy    String?
+  lastEditedBy String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([modelId])
+  @@index([provider])
+  @@index([enabled])
+  @@index([rank])
+  @@map("ai_model_definitions")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ENTERPRISE SCAN ENGINE MANAGEMENT - AI CONSENSUS CONFIGURATION
+// Configures how AI models reach consensus on verdicts
+// ═══════════════════════════════════════════════════════════════════════════
+
+model AIConsensusConfig {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(false)
+
+  // Consensus Strategy
+  strategy            String @default("weighted_vote") // weighted_vote, unanimous, majority, highest_confidence
+  minimumModels       Int    @default(2) // Minimum models required
+  confidenceThreshold Float  @default(0.7) // Minimum avg confidence (0.0-1.0)
+
+  // Multiplier Calculation
+  multiplierMethod     String  @default("average_confidence") // average_confidence, weighted_confidence, max_confidence
+  multiplierRange      Json    @default("{\"min\": 0.5, \"max\": 1.5}") // Range for multiplier
+  penalizeDisagreement Boolean @default(true)
+  disagreementPenalty  Float   @default(0.1) // Reduce multiplier by this on disagreement
+
+  // Model Selection
+  enabledModels String[] @default([]) // ModelIds to use in consensus
+
+  // Advanced Settings
+  allowPartialConsensus Boolean @default(true) // Allow consensus with fewer than all models
+  timeoutMs             Int     @default(30000) // Overall timeout
+  retryFailedModels     Boolean @default(true)
+
+  // Metadata
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([name])
+  @@map("ai_consensus_configs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GLOBAL SETTINGS MANAGEMENT
+// Manages ALL environment variables and global configuration
+// Replaces hardcoded process.env calls throughout the application
+// ═══════════════════════════════════════════════════════════════════════════
+
+model GlobalSetting {
+  id          String  @id @default(cuid())
+  key         String  @unique // ENV_VAR_NAME (e.g., "ANTHROPIC_API_KEY")
+  value       String? // Encrypted if sensitive
+  category    String // api_keys, database, services, features, performance, security
+  isSensitive Boolean @default(false) // If true, value is encrypted
+  description String?
+  validation  String? // Regex or JSON schema for validation
+  required    Boolean @default(false)
+  isActive    Boolean @default(true)
+
+  // Environment-specific
+  environment String @default("all") // all, dev, staging, prod
+
+  // Version control
+  version     Int     @default(1)
+  previousValue String? // Last value before update
+
+  // Metadata
+  createdBy    String?
+  lastEditedBy String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([key])
+  @@index([category])
+  @@index([isActive])
+  @@index([environment])
+  @@map("global_settings")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MESSAGE SCAN API CONFIGURATION
+// Configures message scanning for scam/phishing detection
+// ═══════════════════════════════════════════════════════════════════════════
+
+model MessageScanConfig {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean @default(false)
+
+  // Detection Parameters
+  maxMessageLength   Int      @default(10000)
+  minConfidence      Float    @default(0.7)
+  languageDetection  Boolean  @default(true)
+  supportedLanguages String[] @default(["en", "es", "fr", "de", "it", "pt", "ja", "zh", "ko"])
+
+  // AI Models
+  models       String[] @default(["claude-sonnet-4.5", "gpt-4", "gemini-1.5-flash"])
+  modelWeights Json     @default("{\"claude\": 0.35, \"gpt4\": 0.35, \"gemini\": 0.30}")
+
+  // Detection Rules
+  keywordRules  Json @default("{}") // urgencyKeywords, scamKeywords, phishingKeywords
+  regexPatterns Json @default("{}") // phoneNumbers, urls, emails
+
+  // Threat Intelligence
+  threatIntelEnabled       Boolean @default(true)
+  knownScamDatabaseEnabled Boolean @default(true)
+
+  // Performance
+  timeout         Int     @default(30000)
+  cacheEnabled    Boolean @default(true)
+  cacheDuration   Int     @default(3600) // seconds
+  asyncProcessing Boolean @default(true)
+
+  // Rate Limiting
+  rateLimits Json @default("{\"free\": 100, \"basic\": 500, \"premium\": 2000, \"enterprise\": 10000}")
+
+  // Metadata
+  createdBy    String?
+  lastEditedBy String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([name])
+  @@map("message_scan_configs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FILE SCAN OCR API CONFIGURATION
+// Configures file scanning and OCR for document/image analysis
+// ═══════════════════════════════════════════════════════════════════════════
+
+model FileScanConfig {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(false)
+
+  // File Processing
+  allowedTypes          String[] @default(["pdf", "png", "jpg", "jpeg", "docx", "txt"])
+  maxFileSizeFree       Int      @default(5242880) // 5MB
+  maxFileSizePro        Int      @default(26214400) // 25MB
+  maxFileSizeEnterprise Int      @default(104857600) // 100MB
+
+  // OCR Engine Selection
+  ocrEngine          String  @default("tesseract") // tesseract, google_vision, aws_textract
+  googleVisionApiKey String? // Encrypted
+  awsAccessKey       String? // Encrypted
+  awsSecretKey       String? // Encrypted
+
+  // OCR Configuration
+  ocrLanguages       String[] @default(["eng"])
+  ocrConfidence      Float    @default(0.8)
+  imagePreprocessing Boolean  @default(true)
+  deskewEnabled      Boolean  @default(true)
+  noiseReduction     Boolean  @default(true)
+
+  // Content Analysis
+  piiDetection    Boolean @default(true)
+  piiPatterns     Json    @default("[]") // SSN, CC, passport patterns
+  malwareScanning Boolean @default(true)
+  virusDbEnabled  Boolean @default(true)
+
+  // AI Models for Content Analysis
+  aiModels     String[] @default(["claude-sonnet-4.5", "gpt-4"])
+  modelWeights Json     @default("{\"claude\": 0.5, \"gpt4\": 0.5}")
+
+  // Metadata Extraction
+  extractExif   Boolean @default(true)
+  extractAuthor Boolean @default(true)
+  extractGps    Boolean @default(true)
+
+  // Performance
+  timeout       Int     @default(60000) // 60s for large files
+  cacheEnabled  Boolean @default(true)
+  cacheDuration Int     @default(3600) // seconds
+
+  // Rate Limiting
+  rateLimits Json @default("{\"free\": 10, \"basic\": 50, \"premium\": 200, \"enterprise\": 1000}")
+
+  // Metadata
+  createdBy    String?
+  lastEditedBy String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([name])
+  @@map("file_scan_configs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FACT CHECK API CONFIGURATION
+// Configures fact-checking and claim verification
+// ═══════════════════════════════════════════════════════════════════════════
+
+model FactCheckConfig {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(false)
+
+  // Claim Extraction
+  nlpModel       String @default("en_core_web_lg") // spaCy model
+  minClaimLength Int    @default(10)
+  maxClaims      Int    @default(5)
+
+  // AI Models for Verification
+  aiModels     String[] @default(["claude-sonnet-4.5", "gpt-4"])
+  modelWeights Json     @default("{\"claude\": 0.5, \"gpt4\": 0.5}")
+
+  // Trusted Sources
+  factCheckSources Json @default("[]") // Snopes, PolitiFact, FactCheck.org
+  newsSources      Json @default("[]") // Reuters, AP, BBC
+  academicDbs      Json @default("[]") // Google Scholar, PubMed, arXiv
+
+  // API Keys for External Sources
+  googleSearchApiKey String? // Encrypted
+  newsApiKey         String? // Encrypted
+  factCheckApiKey    String? // Encrypted
+
+  // Verification Logic
+  evidenceWeighting Json    @default("{}")
+  temporalRelevance Boolean @default(true)
+  sourceCredibility Boolean @default(true)
+  minimumSources    Int     @default(3)
+
+  // Performance
+  timeout       Int     @default(45000)
+  cacheEnabled  Boolean @default(true)
+  cacheDuration Int     @default(86400) // 24 hours
+
+  // Rate Limiting
+  rateLimits Json @default("{\"free\": 10, \"basic\": 50, \"premium\": 200, \"enterprise\": 1000}")
+
+  // Metadata
+  createdBy    String?
+  lastEditedBy String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([name])
+  @@map("fact_check_configs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROFILE ANALYZER API CONFIGURATION
+// Configures social media profile analysis and bot detection
+// ═══════════════════════════════════════════════════════════════════════════
+
+model ProfileAnalyzerConfig {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(false)
+
+  // Supported Platforms
+  enabledPlatforms String[] @default(["twitter", "instagram", "linkedin", "facebook"])
+
+  // Platform API Keys (Encrypted)
+  twitterApiKey    String? // X/Twitter API
+  twitterApiSecret String?
+  instagramApiKey  String?
+  linkedinApiKey   String?
+  facebookApiKey   String?
+
+  // Bot Detection
+  botDetectionThreshold Float @default(0.7)
+  fakeAccountIndicators Json  @default("[]")
+  checkFollowerRatio    Boolean @default(true)
+  checkActivityPattern  Boolean @default(true)
+
+  // Engagement Analysis
+  engagementMetrics      Json @default("{}")
+  followerQualityWeights Json @default("{}")
+
+  // Trust Score Calculation
+  trustScoreWeights Json @default("{}")
+  redFlags          Json @default("[]")
+  greenFlags        Json @default("[]")
+
+  // AI Models for Content Analysis
+  aiModels     String[] @default(["claude-sonnet-4.5", "gpt-4"])
+  modelWeights Json     @default("{\"claude\": 0.5, \"gpt4\": 0.5}")
+
+  // Performance
+  timeout       Int     @default(30000)
+  cacheEnabled  Boolean @default(true)
+  cacheDuration Int     @default(7200) // 2 hours
+
+  // Rate Limiting
+  rateLimits Json @default("{\"free\": 10, \"basic\": 50, \"premium\": 200, \"enterprise\": 1000}")
+
+  // Metadata
+  createdBy    String?
+  lastEditedBy String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([name])
+  @@map("profile_analyzer_configs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEEPFAKE DETECTION API CONFIGURATION
+// Configures deepfake detection for video/audio/image analysis
+// ═══════════════════════════════════════════════════════════════════════════
+
+model DeepfakeConfig {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(false)
+
+  // Detection Models
+  videoModel String @default("facenet") // facenet, efficientnet
+  audioModel String @default("wav2vec") // wav2vec, resnet
+  imageModel String @default("efficientnet") // efficientnet, xception
+
+  // Model API Keys (if using external services)
+  awsRekognitionKey    String? // Encrypted
+  googleVideoApiKey    String? // Encrypted
+  deepwareApiKey       String? // Encrypted
+  sensityApiKey        String? // Encrypted
+
+  // Analysis Parameters
+  frameSamplingRate Int     @default(10) // frames per second
+  audioChunkSize    Int     @default(1024)
+  minResolution     Int     @default(720)
+  enableGpuProcessing Boolean @default(true)
+
+  // Thresholds
+  videoConfidence Float @default(0.85)
+  audioConfidence Float @default(0.85)
+  imageConfidence Float @default(0.85)
+
+  // Model Consensus
+  requireConsensus Boolean @default(true)
+  minimumModels    Int     @default(2)
+
+  // AI Models for Additional Analysis
+  aiModels     String[] @default(["claude-sonnet-4.5"])
+  modelWeights Json     @default("{\"claude\": 1.0}")
+
+  // Performance
+  timeout       Int     @default(120000) // 2 minutes for video processing
+  cacheEnabled  Boolean @default(true)
+  cacheDuration Int     @default(1800) // 30 minutes
+
+  // Rate Limiting
+  rateLimits Json @default("{\"free\": 5, \"basic\": 20, \"premium\": 100, \"enterprise\": 500}")
+
+  // Metadata
+  createdBy    String?
+  lastEditedBy String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([name])
+  @@map("deepfake_configs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// URL SCAN CHECK TYPE DEFINITIONS
+// Defines all individual security checks used in URL scanning
+// ═══════════════════════════════════════════════════════════════════════════
+
+model CheckType {
+  id                  String   @id @default(cuid())
+  name                String
+  category            String   // SSL/TLS, Domain Age, DNS, URL Structure, etc.
+  description         String
+  severity            String   // low, medium, high, critical
+  pointsDeducted      Int      @default(5)
+  enabled             Boolean  @default(true)
+  automationCapable   Boolean  @default(true)
+  requiresManualReview Boolean @default(false)
+  apiIntegration      String?  // whois-json, virustotal, puppeteer, axios, node:dns, etc.
+  apiEndpoint         String?  // API endpoint URL if external
+  credentialsRequired Boolean  @default(false)
+  config              Json?    @default("{}") // Check-specific configuration
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([name, category], name: "name_category")
+  @@index([category])
+  @@index([enabled])
+  @@index([severity])
+  @@map("check_types")
+}

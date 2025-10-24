@@ -1,0 +1,186 @@
+# PostgreSQL Automated Backups
+# Schedule: Every 6 hours
+# Retention: 30 days in Cloud Storage
+# Cost: ~$1/month
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: elara-database
+  labels:
+    app: postgres-backup
+    component: backup
+spec:
+  schedule: "0 */6 * * *"  # Every 6 hours at minute 0
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: postgres-backup
+        spec:
+          serviceAccountName: postgres-backup-sa
+          restartPolicy: OnFailure
+
+          containers:
+          - name: backup
+            image: postgres:16-alpine
+            imagePullPolicy: IfNotPresent
+
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+              BACKUP_FILE="backup-${TIMESTAMP}.sql.gz"
+              BACKUP_PATH="/backup/${BACKUP_FILE}"
+              GCS_BUCKET="gs://elara-backups-elara-mvp-13082025-u1/postgres"
+
+              echo "🔄 Starting PostgreSQL backup at ${TIMESTAMP}"
+
+              # Create backup using pg_dump
+              echo "📦 Creating backup..."
+              pg_dump -h postgres-primary.elara-database.svc.cluster.local \
+                      -U elara_app \
+                      -d elara_production \
+                      -Fc \
+                      --no-owner \
+                      --no-acl \
+                      --verbose | gzip > ${BACKUP_PATH}
+
+              # Check if backup was created
+              if [ ! -f "${BACKUP_PATH}" ]; then
+                echo "❌ Backup file not created!"
+                exit 1
+              fi
+
+              BACKUP_SIZE=$(du -h ${BACKUP_PATH} | cut -f1)
+              echo "✅ Backup created: ${BACKUP_FILE} (${BACKUP_SIZE})"
+
+              # Install gcloud (already in alpine image via workload identity)
+              echo "☁️ Uploading to Cloud Storage..."
+
+              # Upload to GCS
+              if command -v gsutil > /dev/null; then
+                gsutil cp ${BACKUP_PATH} ${GCS_BUCKET}/${BACKUP_FILE}
+                echo "✅ Backup uploaded to ${GCS_BUCKET}/${BACKUP_FILE}"
+              else
+                echo "⚠️ gsutil not found, skipping GCS upload"
+              fi
+
+              # Cleanup local backup
+              rm -f ${BACKUP_PATH}
+              echo "🧹 Local backup cleaned up"
+
+              # Delete old backups (keep last 30 days)
+              echo "🗑️ Cleaning up old backups..."
+              if command -v gsutil > /dev/null; then
+                gsutil ls ${GCS_BUCKET}/ | \
+                  grep -E 'backup-[0-9]{8}-[0-9]{6}\.sql\.gz$' | \
+                  sort -r | \
+                  tail -n +121 | \
+                  xargs -r -I {} gsutil rm {}
+                echo "✅ Old backups cleaned (retained last 120 = 30 days)"
+              fi
+
+              echo "✅ Backup complete!"
+
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: POSTGRES_PASSWORD
+
+            volumeMounts:
+            - name: backup-temp
+              mountPath: /backup
+
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "500m"
+              limits:
+                memory: "1Gi"
+                cpu: "1000m"
+
+          volumes:
+          - name: backup-temp
+            emptyDir:
+              sizeLimit: 10Gi
+
+---
+# Service Account for Backups (Workload Identity)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-backup-sa
+  namespace: elara-database
+  annotations:
+    iam.gke.io/gcp-service-account: elara-postgres-backup@elara-mvp-13082025-u1.iam.gserviceaccount.com
+
+---
+# Manual Backup Job (run on-demand)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-manual-backup
+  namespace: elara-database
+  labels:
+    app: postgres-backup
+    type: manual
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: postgres-backup
+    spec:
+      serviceAccountName: postgres-backup-sa
+      restartPolicy: OnFailure
+
+      containers:
+      - name: backup
+        image: postgres:16-alpine
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          BACKUP_FILE="manual-backup-${TIMESTAMP}.sql.gz"
+          echo "🔄 Creating manual backup: ${BACKUP_FILE}"
+
+          pg_dump -h postgres-primary.elara-database.svc.cluster.local \
+                  -U elara_app \
+                  -d elara_production \
+                  -Fc | gzip > /backup/${BACKUP_FILE}
+
+          gsutil cp /backup/${BACKUP_FILE} \
+            gs://elara-backups-elara-mvp-13082025-u1/postgres/manual/${BACKUP_FILE}
+
+          echo "✅ Manual backup complete!"
+
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secrets
+              key: POSTGRES_PASSWORD
+
+        volumeMounts:
+        - name: backup-temp
+          mountPath: /backup
+
+      volumes:
+      - name: backup-temp
+        emptyDir:
+          sizeLimit: 10Gi

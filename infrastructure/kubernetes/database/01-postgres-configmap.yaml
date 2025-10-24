@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: elara-backend-prod
+  labels:
+    app: postgresql
+    tier: database
+data:
+  POSTGRES_DB: "elara_production"
+  POSTGRES_USER: "elara_app"
+
+  # PostgreSQL Configuration
+  postgresql.conf: |
+    # Connection Settings
+    max_connections = 200
+    superuser_reserved_connections = 3
+
+    # Memory Settings (optimized for 8GB RAM pod)
+    shared_buffers = 2GB
+    effective_cache_size = 6GB
+    work_mem = 10MB
+    maintenance_work_mem = 512MB
+
+    # WAL Settings (for replication)
+    wal_level = replica
+    max_wal_senders = 10
+    max_replication_slots = 10
+    wal_keep_size = 1GB
+
+    # Checkpoint Settings
+    checkpoint_timeout = 15min
+    checkpoint_completion_target = 0.9
+
+    # Query Planner
+    random_page_cost = 1.1
+    effective_io_concurrency = 200
+
+    # Logging
+    log_destination = 'stderr'
+    logging_collector = on
+    log_directory = 'pg_log'
+    log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+    log_truncate_on_rotation = on
+    log_rotation_age = 1d
+    log_rotation_size = 100MB
+    log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+    log_timezone = 'UTC'
+
+    # Performance
+    shared_preload_libraries = 'pg_stat_statements'
+
+    # SSL
+    ssl = on
+    ssl_cert_file = '/var/lib/postgresql/ssl/server.crt'
+    ssl_key_file = '/var/lib/postgresql/ssl/server.key'
+
+  pg_hba.conf: |
+    # TYPE  DATABASE        USER            ADDRESS                 METHOD
+    local   all             all                                     trust
+    host    all             all             127.0.0.1/32            md5
+    host    all             all             ::1/128                 md5
+
+    # Allow connections from GKE pods
+    host    all             all             10.0.0.0/8              md5
+
+    # Replication connections
+    host    replication     replicator      10.0.0.0/8              md5

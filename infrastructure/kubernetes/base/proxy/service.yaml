@@ -1,0 +1,21 @@
+# ==============================================================================
+# ELARA PROXY SERVICE - SERVICE
+# ==============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: elara-proxy-service
+  namespace: elara-proxy
+  labels:
+    app: elara-proxy
+    component: proxy
+spec:
+  type: ClusterIP
+  selector:
+    app: elara-proxy
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP

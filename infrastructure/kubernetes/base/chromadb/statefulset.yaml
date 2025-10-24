@@ -1,0 +1,100 @@
+# ==============================================================================
+# CHROMADB - STATEFULSET (Vector Database for RAG)
+# ==============================================================================
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: chromadb
+  namespace: elara-backend
+  labels:
+    app: chromadb
+    component: database
+    tier: data
+spec:
+  serviceName: chromadb-service
+  replicas: 2
+  selector:
+    matchLabels:
+      app: chromadb
+  template:
+    metadata:
+      labels:
+        app: chromadb
+        component: database
+        tier: data
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+      - name: chromadb
+        image: chromadb/chroma:0.4.18
+        imagePullPolicy: IfNotPresent
+
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+
+        env:
+        - name: IS_PERSISTENT
+          value: "TRUE"
+        - name: PERSIST_DIRECTORY
+          value: "/chroma/data"
+        - name: ANONYMIZED_TELEMETRY
+          value: "FALSE"
+
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 2Gi
+          limits:
+            cpu: 4000m
+            memory: 8Gi
+
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /api/v1/heartbeat
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /api/v1/heartbeat
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+
+        volumeMounts:
+        - name: chromadb-data
+          mountPath: /chroma/data
+
+  volumeClaimTemplates:
+  - metadata:
+      name: chromadb-data
+      labels:
+        app: chromadb
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: premium-rwo  # GCP SSD persistent disk
+      resources:
+        requests:
+          storage: 100Gi

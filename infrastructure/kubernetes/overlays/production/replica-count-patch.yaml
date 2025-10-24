@@ -1,0 +1,42 @@
+# ==============================================================================
+# PRODUCTION REPLICA COUNT PATCH
+# ==============================================================================
+
+# Backend API - Increase initial replicas for production
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elara-api
+  namespace: elara-backend
+spec:
+  replicas: 5  # Production starts with 5 replicas (HPA will scale 3-20)
+
+---
+# Worker - Increase initial replicas for production
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elara-worker
+  namespace: elara-workers
+spec:
+  replicas: 10  # Production starts with 10 replicas (HPA will scale 5-30)
+
+---
+# Proxy - Production replicas
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elara-proxy
+  namespace: elara-proxy
+spec:
+  replicas: 3  # Production starts with 3 replicas
+
+---
+# ChromaDB - Production replicas
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: chromadb
+  namespace: elara-backend
+spec:
+  replicas: 3  # 3 replicas for HA

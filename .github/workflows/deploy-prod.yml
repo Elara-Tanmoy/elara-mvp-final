@@ -1,0 +1,59 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to GKE Production
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Trigger Cloud Build
+        run: |
+          gcloud builds submit \
+            --config=infrastructure/cloudbuild/prod.yaml \
+            --substitutions=SHORT_SHA=${{ github.sha }},_ENVIRONMENT=prod \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            .
+
+      - name: Run health checks
+        if: success()
+        run: |
+          echo "Running health checks..."
+          curl -f http://34.36.48.252/api/health || exit 1
+          echo "✅ Health checks passed!"
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "✅ Deployment to Production successful!"
+          echo "Backend API: http://34.36.48.252/api"
+          echo "Frontend: http://34.36.48.252/"
+          echo "Commit: ${{ github.sha }}"
+
+      - name: Deployment failed
+        if: failure()
+        run: |
+          echo "❌ Deployment to Production failed!"
+          echo "Check Cloud Build logs at:"
+          echo "https://console.cloud.google.com/cloud-build/builds?project=${{ secrets.GCP_PROJECT_ID }}"

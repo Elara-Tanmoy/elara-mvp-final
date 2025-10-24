@@ -1,0 +1,130 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: elara-backend-prod
+  labels:
+    app: postgresql
+    component: backup
+spec:
+  # Run every 6 hours at minute 0
+  schedule: "0 */6 * * *"
+
+  # Keep last 3 successful and 1 failed job
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+
+  jobTemplate:
+    spec:
+      # Fail after 1 hour
+      activeDeadlineSeconds: 3600
+
+      # Don't run backup if previous one is still running
+      backoffLimit: 1
+
+      template:
+        metadata:
+          labels:
+            app: postgresql
+            component: backup
+        spec:
+          serviceAccountName: elara-workload-identity-sa
+
+          restartPolicy: OnFailure
+
+          containers:
+          - name: backup
+            image: google/cloud-sdk:alpine
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              echo "============================================"
+              echo "PostgreSQL Backup Started"
+              echo "Time: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+              echo "============================================"
+
+              # Install PostgreSQL client
+              apk add --no-cache postgresql16-client
+
+              # Generate backup filename with timestamp
+              BACKUP_DATE=$(date +%Y%m%d-%H%M%S)
+              BACKUP_FILE="elara-postgres-backup-${BACKUP_DATE}.sql.gz"
+              LOCAL_PATH="/tmp/${BACKUP_FILE}"
+              GCS_PATH="gs://elara-backups-elara-mvp-13082025-u1/postgres/${BACKUP_FILE}"
+
+              echo "Backup file: ${BACKUP_FILE}"
+
+              # Create compressed backup
+              echo "Creating database dump..."
+              PGPASSWORD=$POSTGRES_PASSWORD pg_dump \
+                -h postgres-primary \
+                -U $POSTGRES_USER \
+                -d $POSTGRES_DB \
+                --format=custom \
+                --compress=9 \
+                --verbose \
+                --file=${LOCAL_PATH}
+
+              echo "Backup file size: $(du -h ${LOCAL_PATH} | cut -f1)"
+
+              # Upload to Cloud Storage
+              echo "Uploading to Google Cloud Storage..."
+              gsutil -m cp ${LOCAL_PATH} ${GCS_PATH}
+
+              # Verify upload
+              echo "Verifying upload..."
+              gsutil ls -lh ${GCS_PATH}
+
+              # Cleanup local backup
+              echo "Cleaning up local file..."
+              rm -f ${LOCAL_PATH}
+
+              # Cleanup old backups (keep last 30 days)
+              echo "Cleaning up old backups (>30 days)..."
+              CUTOFF_DATE=$(date -d '30 days ago' +%Y%m%d 2>/dev/null || date -v -30d +%Y%m%d)
+              gsutil ls gs://elara-backups-elara-mvp-13082025-u1/postgres/ | \
+                grep -E "elara-postgres-backup-[0-9]{8}" | \
+                awk -F'-' '{print $4}' | \
+                while read backup_date; do
+                  if [ "${backup_date}" -lt "${CUTOFF_DATE}" ]; then
+                    gsutil rm "gs://elara-backups-elara-mvp-13082025-u1/postgres/elara-postgres-backup-${backup_date}*" || true
+                  fi
+                done
+
+              echo "============================================"
+              echo "PostgreSQL Backup Completed Successfully"
+              echo "Backup stored at: ${GCS_PATH}"
+              echo "============================================"
+
+            env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: POSTGRES_PASSWORD
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/secrets/google/key.json
+
+            volumeMounts:
+            - name: gcp-service-account
+              mountPath: /var/secrets/google
+              readOnly: true
+
+          volumes:
+          - name: gcp-service-account
+            secret:
+              secretName: elara-gcp-credentials
+              optional: true

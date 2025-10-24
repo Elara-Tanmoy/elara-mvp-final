@@ -1,0 +1,7 @@
+REBUILD_TIMESTAMP=2025-10-23T15:30:00Z
+REASON=Force fresh Prisma client regeneration to fix threat intel sync errors
+FIXES:
+- Prisma schema mismatch (indicators field)
+- HTTP 401 errors (API keys configured)
+- HTTP 404 errors (URLs fixed)
+- Circular JSON errors (metadata sanitization)
