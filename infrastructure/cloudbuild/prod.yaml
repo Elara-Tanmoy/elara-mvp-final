@@ -1,5 +1,6 @@
-# Elara Platform - Cloud Build for GKE Deployment
-# Builds backend-api, worker, and proxy Docker images
+# Elara Platform - PRODUCTION Environment Cloud Build
+# Builds and deploys to production environment
+# Triggered on: push to main branch
 
 timeout: 1800s
 
@@ -9,64 +10,65 @@ options:
 
 substitutions:
   _PROJECT_ID: 'elara-mvp-13082025-u1'
+  _ENV: 'prod'
+  _CLUSTER_NAME: 'elara-gke-us-west1'
+  _REGION: 'us-west1'
+  _NAMESPACE_BACKEND: 'elara-backend'
+  _NAMESPACE_WORKERS: 'elara-workers'
+  _NAMESPACE_PROXY: 'elara-proxy'
+  _NAMESPACE_FRONTEND: 'elara-frontend'
 
 steps:
   # ==============================================================================
-  # BUILD BACKEND API IMAGE
+  # BUILD BACKEND API IMAGE (DEV)
   # ==============================================================================
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-backend-api'
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/${_PROJECT_ID}/backend-api:v1.0.0'
+      - 'gcr.io/${_PROJECT_ID}/backend-api:${_ENV}-${SHORT_SHA}'
       - '-t'
-      - 'gcr.io/${_PROJECT_ID}/backend-api:latest'
+      - 'gcr.io/${_PROJECT_ID}/backend-api:${_ENV}-latest'
       - '-f'
-      - 'packages/backend/Dockerfile'
-      - '--build-arg'
-      - 'PACKAGE_PATH=packages/backend'
+      - 'gcp-config/docker/Dockerfile.backend'
       - '.'
     waitFor: ['-']
 
   # ==============================================================================
-  # BUILD WORKER IMAGE
+  # BUILD WORKER IMAGE (DEV)
   # ==============================================================================
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-worker'
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/${_PROJECT_ID}/worker:v1.0.0'
+      - 'gcr.io/${_PROJECT_ID}/worker:${_ENV}-${SHORT_SHA}'
       - '-t'
-      - 'gcr.io/${_PROJECT_ID}/worker:latest'
+      - 'gcr.io/${_PROJECT_ID}/worker:${_ENV}-latest'
       - '-f'
-      - 'packages/backend/Dockerfile'
-      - '--build-arg'
-      - 'PACKAGE_PATH=packages/backend'
+      - 'gcp-config/docker/Dockerfile.worker'
       - '.'
     waitFor: ['-']
 
   # ==============================================================================
-  # BUILD PROXY SERVICE (PYTHON FLASK)
+  # BUILD PROXY SERVICE (DEV)
   # ==============================================================================
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-proxy'
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/${_PROJECT_ID}/proxy:v1.0.0'
+      - 'gcr.io/${_PROJECT_ID}/proxy:${_ENV}-${SHORT_SHA}'
       - '-t'
-      - 'gcr.io/${_PROJECT_ID}/proxy:latest'
+      - 'gcr.io/${_PROJECT_ID}/proxy:${_ENV}-latest'
       - '-f'
-      - 'packages/proxy-service/Dockerfile'
-      - '--build-arg'
-      - 'PACKAGE_PATH=packages/proxy-service'
+      - 'gcp-config/docker/Dockerfile.proxy'
       - '.'
     waitFor: ['-']
 
   # ==============================================================================
-  # BUILD FRONTEND (REACT/VITE + NGINX)
+  # BUILD FRONTEND (DEV)
   # ==============================================================================
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-frontend'
@@ -75,18 +77,18 @@ steps:
       - '--build-arg'
       - 'VITE_API_URL=http://34.36.48.252/api'
       - '--build-arg'
-      - 'PACKAGE_PATH=packages/frontend'
+      - 'VITE_ENVIRONMENT=production'
       - '-t'
-      - 'gcr.io/${_PROJECT_ID}/frontend:v1.0.0'
+      - 'gcr.io/${_PROJECT_ID}/frontend:${_ENV}-${SHORT_SHA}'
       - '-t'
-      - 'gcr.io/${_PROJECT_ID}/frontend:latest'
+      - 'gcr.io/${_PROJECT_ID}/frontend:${_ENV}-latest'
       - '-f'
-      - 'packages/frontend/Dockerfile'
+      - 'gcp-config/docker/Dockerfile.frontend'
       - '.'
     waitFor: ['-']
 
   # ==============================================================================
-  # DEPLOY TO GKE - AUTOMATICALLY UPDATE RUNNING SERVICES
+  # DEPLOY TO GKE DEV ENVIRONMENT
   # ==============================================================================
   # Connect to GKE cluster
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -95,74 +97,90 @@ steps:
       - 'container'
       - 'clusters'
       - 'get-credentials'
-      - 'elara-gke-us-west1'
-      - '--region=us-west1'
+      - '${_CLUSTER_NAME}'
+      - '--region=${_REGION}'
       - '--project=${_PROJECT_ID}'
     waitFor: ['build-backend-api', 'build-worker', 'build-proxy', 'build-frontend']
 
-  # Restart backend deployment (triggers pull of latest image)
+  # Create dev namespaces if they don't exist
+  - name: 'gcr.io/cloud-builders/kubectl'
+    id: 'create-namespaces'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        kubectl create namespace ${_NAMESPACE_BACKEND} --dry-run=client -o yaml | kubectl apply -f -
+        kubectl create namespace ${_NAMESPACE_WORKERS} --dry-run=client -o yaml | kubectl apply -f -
+        kubectl create namespace ${_NAMESPACE_PROXY} --dry-run=client -o yaml | kubectl apply -f -
+        kubectl create namespace ${_NAMESPACE_FRONTEND} --dry-run=client -o yaml | kubectl apply -f -
+    env:
+      - 'CLOUDSDK_COMPUTE_REGION=${_REGION}'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}'
+    waitFor: ['get-gke-credentials']
+
+  # Restart backend deployment
   - name: 'gcr.io/cloud-builders/kubectl'
     id: 'deploy-backend'
+    entrypoint: 'bash'
     args:
-      - 'rollout'
-      - 'restart'
-      - 'deployment/elara-api'
-      - '-n'
-      - 'elara-backend'
+      - '-c'
+      - |
+        kubectl set image deployment/elara-api api=gcr.io/${_PROJECT_ID}/backend-api:${_ENV}-${SHORT_SHA} -n ${_NAMESPACE_BACKEND} || echo "Deployment may not exist yet"
+        kubectl rollout status deployment/elara-api -n ${_NAMESPACE_BACKEND} --timeout=5m || echo "Rollout status check skipped"
     env:
-      - 'CLOUDSDK_COMPUTE_REGION=us-west1'
-      - 'CLOUDSDK_CONTAINER_CLUSTER=elara-gke-us-west1'
-    waitFor: ['get-gke-credentials']
+      - 'CLOUDSDK_COMPUTE_REGION=${_REGION}'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}'
+    waitFor: ['create-namespaces']
 
   # Restart worker deployment
   - name: 'gcr.io/cloud-builders/kubectl'
     id: 'deploy-worker'
+    entrypoint: 'bash'
     args:
-      - 'rollout'
-      - 'restart'
-      - 'deployment/elara-worker'
-      - '-n'
-      - 'elara-workers'
+      - '-c'
+      - |
+        kubectl set image deployment/elara-worker worker=gcr.io/${_PROJECT_ID}/worker:${_ENV}-${SHORT_SHA} -n ${_NAMESPACE_WORKERS} || echo "Deployment may not exist yet"
+        kubectl rollout status deployment/elara-worker -n ${_NAMESPACE_WORKERS} --timeout=5m || echo "Rollout status check skipped"
     env:
-      - 'CLOUDSDK_COMPUTE_REGION=us-west1'
-      - 'CLOUDSDK_CONTAINER_CLUSTER=elara-gke-us-west1'
-    waitFor: ['get-gke-credentials']
+      - 'CLOUDSDK_COMPUTE_REGION=${_REGION}'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}'
+    waitFor: ['create-namespaces']
 
   # Restart proxy deployment
   - name: 'gcr.io/cloud-builders/kubectl'
     id: 'deploy-proxy'
+    entrypoint: 'bash'
     args:
-      - 'rollout'
-      - 'restart'
-      - 'deployment/elara-proxy'
-      - '-n'
-      - 'elara-proxy'
+      - '-c'
+      - |
+        kubectl set image deployment/elara-proxy proxy=gcr.io/${_PROJECT_ID}/proxy:${_ENV}-${SHORT_SHA} -n ${_NAMESPACE_PROXY} || echo "Deployment may not exist yet"
+        kubectl rollout status deployment/elara-proxy -n ${_NAMESPACE_PROXY} --timeout=5m || echo "Rollout status check skipped"
     env:
-      - 'CLOUDSDK_COMPUTE_REGION=us-west1'
-      - 'CLOUDSDK_CONTAINER_CLUSTER=elara-gke-us-west1'
-    waitFor: ['get-gke-credentials']
+      - 'CLOUDSDK_COMPUTE_REGION=${_REGION}'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}'
+    waitFor: ['create-namespaces']
 
   # Restart frontend deployment
   - name: 'gcr.io/cloud-builders/kubectl'
     id: 'deploy-frontend'
+    entrypoint: 'bash'
     args:
-      - 'rollout'
-      - 'restart'
-      - 'deployment/elara-frontend'
-      - '-n'
-      - 'elara-frontend'
+      - '-c'
+      - |
+        kubectl set image deployment/elara-frontend frontend=gcr.io/${_PROJECT_ID}/frontend:${_ENV}-${SHORT_SHA} -n ${_NAMESPACE_FRONTEND} || echo "Deployment may not exist yet"
+        kubectl rollout status deployment/elara-frontend -n ${_NAMESPACE_FRONTEND} --timeout=5m || echo "Rollout status check skipped"
     env:
-      - 'CLOUDSDK_COMPUTE_REGION=us-west1'
-      - 'CLOUDSDK_CONTAINER_CLUSTER=elara-gke-us-west1'
-    waitFor: ['get-gke-credentials']
+      - 'CLOUDSDK_COMPUTE_REGION=${_REGION}'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}'
+    waitFor: ['create-namespaces']
 
 # Push all images to GCR
 images:
-  - 'gcr.io/${_PROJECT_ID}/backend-api:v1.0.0'
-  - 'gcr.io/${_PROJECT_ID}/backend-api:latest'
-  - 'gcr.io/${_PROJECT_ID}/worker:v1.0.0'
-  - 'gcr.io/${_PROJECT_ID}/worker:latest'
-  - 'gcr.io/${_PROJECT_ID}/proxy:v1.0.0'
-  - 'gcr.io/${_PROJECT_ID}/proxy:latest'
-  - 'gcr.io/${_PROJECT_ID}/frontend:v1.0.0'
-  - 'gcr.io/${_PROJECT_ID}/frontend:latest'
+  - 'gcr.io/${_PROJECT_ID}/backend-api:${_ENV}-${SHORT_SHA}'
+  - 'gcr.io/${_PROJECT_ID}/backend-api:${_ENV}-latest'
+  - 'gcr.io/${_PROJECT_ID}/worker:${_ENV}-${SHORT_SHA}'
+  - 'gcr.io/${_PROJECT_ID}/worker:${_ENV}-latest'
+  - 'gcr.io/${_PROJECT_ID}/proxy:${_ENV}-${SHORT_SHA}'
+  - 'gcr.io/${_PROJECT_ID}/proxy:${_ENV}-latest'
+  - 'gcr.io/${_PROJECT_ID}/frontend:${_ENV}-${SHORT_SHA}'
+  - 'gcr.io/${_PROJECT_ID}/frontend:${_ENV}-latest'

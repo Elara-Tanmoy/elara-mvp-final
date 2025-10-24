@@ -1,0 +1,46 @@
+# ==============================================================================
+# ELARA BULLMQ WORKER - DOCKERFILE (Development Mode - Like Vercel/Render)
+# ==============================================================================
+# Build from repository root: docker build -f gcp-infrastructure/docker/Dockerfile.worker .
+# ==============================================================================
+
+FROM node:20-alpine AS production
+
+# Install OpenSSL for Prisma (Alpine Linux requirement)
+RUN apk add --no-cache openssl libc6-compat
+
+RUN npm install -g pnpm@latest tsx@latest
+
+# Use existing node user (UID 1000)
+WORKDIR /app
+
+# Copy workspace config
+COPY package.json pnpm-workspace.yaml ./
+COPY pnpm-lock.yaml ./
+
+# Copy package.json files
+COPY packages/backend/package.json ./packages/backend/
+COPY packages/shared/package.json ./packages/shared/
+
+# Install ALL dependencies (not just prod, since we need TypeScript runtime)
+RUN pnpm install --no-frozen-lockfile
+
+# Copy source code
+COPY packages/backend ./packages/backend
+COPY packages/shared ./packages/shared
+
+# Generate Prisma client
+WORKDIR /app/packages/backend
+RUN pnpm prisma generate
+
+# Create directories and set permissions
+RUN mkdir -p /tmp/uploads /app/uploads && \
+    chown -R node:node /app /tmp/uploads
+
+USER node
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD pgrep -f "tsx.*worker" || exit 1
+
+# Run with tsx (TypeScript execution) instead of compiling
+CMD ["tsx", "src/workers/index.ts"]

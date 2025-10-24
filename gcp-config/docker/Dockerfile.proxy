@@ -1,0 +1,39 @@
+# ==============================================================================
+# ELARA PROXY SERVICE - PYTHON FLASK/GUNICORN
+# ==============================================================================
+# Enterprise browser isolation proxy service
+# Build from repository root: docker build -f gcp-infrastructure/docker/Dockerfile.proxy .
+# ==============================================================================
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY packages/proxy-service/requirements.txt ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY packages/proxy-service/ ./
+
+# Create non-root user
+RUN useradd -m -u 1000 elara && \
+    chown -R elara:elara /app
+
+USER elara
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD python -c "import requests; requests.get('http://localhost:8080/health').raise_for_status()"
+
+# Run with Gunicorn (same as Render)
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "60", "--log-file", "-", "--access-logfile", "-"]
