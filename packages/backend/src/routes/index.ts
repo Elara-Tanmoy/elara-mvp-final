@@ -248,9 +248,15 @@ router.use('/v2/threat-intel', threatIntelRoutes);
 // ADMIN ROUTES - Admin Panel (Scan Engine + V2 Scanner Config)
 // ═══════════════════════════════════════════════════════════════════════════
 // Admin Panel routes - Admin only (includes scan engine + V2 scanner management)
+// Mounted at TWO paths for compatibility:
+// - /admin for V2 Scanner Config UI (new)
+// - /v2/admin/scan-engine for Scan Engine Admin UI (existing)
 logger.info('[Routes] Registering Admin routes at /admin...');
 router.use('/admin', authenticate, requireAdmin, adminScanEngineRoutes);
-logger.info('[Routes] Admin routes registered (scan-engine + v2-config)');
+logger.info('[Routes] Admin routes registered at /admin (v2-config)');
+logger.info('[Routes] Registering Admin routes at /v2/admin/scan-engine...');
+router.use('/v2/admin/scan-engine', authenticate, requireAdmin, adminScanEngineRoutes);
+logger.info('[Routes] Admin routes registered at /v2/admin/scan-engine (scan-engine admin)');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MESSAGE SCAN ADMIN ROUTES - Admin Panel
