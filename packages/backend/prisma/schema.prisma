@@ -1849,3 +1849,293 @@ model V2ModelRegistry {
   @@index([deploymentStatus])
   @@map("v2_model_registry")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V2 CHECK DEFINITIONS
+// Granular control over individual V2 scanner checks (like V1 CheckType)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model V2CheckDefinition {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  displayName String
+  description String?
+  category    String // "policy", "stage1_lexical", "stage1_tabular", "stage2_text", "stage2_screenshot", "ti"
+
+  // Stage Assignment
+  stage     String // "policy", "stage1", "stage2", "ti_gate"
+  modelType String? // "lexical_a", "lexical_b", "tabular", "text", "screenshot", "ti"
+
+  // Scoring Configuration
+  weight    Float  @default(1.0) // Weight in ensemble (0-1)
+  points    Int    @default(10) // Points for this check (0-100)
+  maxPoints Int    @default(100)
+  threshold Float? // Detection threshold (0-1)
+
+  // Check Behavior
+  enabled            Boolean @default(true)
+  criticalCheck      Boolean @default(false) // If true, failure = auto-block
+  requiresEvidence   Boolean @default(false)
+  requiresScreenshot Boolean @default(false)
+
+  // Branch-Specific Overrides (JSON: {ONLINE: {threshold: 0.5}, ...})
+  branchOverrides Json? @default("{}")
+
+  // API Integration
+  apiEndpoint      String? // Vertex AI endpoint or external API
+  apiTimeout       Int     @default(5000) // ms
+  fallbackBehavior String  @default("skip") // "skip", "fail_safe", "fail_secure"
+
+  // Performance
+  avgLatency  Int? // ms
+  successRate Float? @default(1.0)
+
+  // Metadata
+  order     Int      @default(0) // Display order in UI
+  isActive  Boolean  @default(true)
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([stage])
+  @@index([enabled])
+  @@index([isActive])
+  @@map("v2_check_definitions")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V2 PRESETS
+// Predefined configuration templates (strict, balanced, lenient)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model V2Preset {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  displayName String
+  description String?
+  category    String  @default("custom") // "default", "strict", "balanced", "lenient", "custom"
+
+  // Configuration Snapshot
+  config Json // Complete V2ScannerConfig as JSON
+
+  // Check Overrides (JSON: [{checkId, enabled, weight, threshold}, ...])
+  checkOverrides Json? @default("[]")
+
+  // Branch Thresholds
+  branchThresholds Json @default("{}")
+
+  // Model Weights
+  stage1Weights Json @default("{}")
+  stage2Weights Json @default("{}")
+
+  // Usage
+  isDefault Boolean @default(false)
+  isSystem  Boolean @default(false) // System presets cannot be deleted
+  timesUsed Int     @default(0)
+
+  // Metadata
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([isDefault])
+  @@map("v2_presets")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V2 CALIBRATION RESULTS
+// Stores V1 vs V2 comparison test results
+// ═══════════════════════════════════════════════════════════════════════════
+
+model V2CalibrationResult {
+  id     String @id @default(cuid())
+  testId String @unique
+
+  // Test Configuration
+  testUrl        String
+  testType       String @default("comparison") // "comparison", "threshold_tuning", "ab_test"
+  configSnapshot Json // V2ScannerConfig at time of test
+
+  // V1 Results
+  v1Score    Int
+  v1Level    String
+  v1Verdict  String?
+  v1Duration Int
+  v1Findings Json?
+
+  // V2 Results
+  v2Score         Int
+  v2Level         String
+  v2Verdict       String?
+  v2Probability   Float
+  v2Confidence    Json // {lower, upper}
+  v2Duration      Int
+  v2Stage1Results Json?
+  v2Stage2Results Json?
+  v2DecisionGraph Json?
+
+  // Comparison
+  agreement       Boolean // Risk level match
+  scoreDifference Int
+  durationDelta   Int // V1 - V2 (negative = V2 faster)
+  accuracyVerdict String? // "correct", "false_positive", "false_negative"
+
+  // Ground Truth (if available)
+  groundTruth       String? // "malicious", "benign", "unknown"
+  verifiedBy        String?
+  verificationNotes String?
+
+  // Metadata
+  organizationId String?
+  testedBy       String?
+  testedAt       DateTime @default(now())
+
+  @@index([testType])
+  @@index([agreement])
+  @@index([accuracyVerdict])
+  @@index([testedAt])
+  @@map("v2_calibration_results")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V2 FEATURE STORE
+// Caches extracted features for reuse (avoid recomputing)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model V2FeatureStore {
+  id      String @id @default(cuid())
+  urlHash String @unique // SHA-256 of normalized URL
+  url     String
+
+  // Extracted Features (JSON)
+  lexicalFeatures    Json? // N-grams, entropy, special chars
+  tabularFeatures    Json? // Domain age, SSL, redirects, TI hits
+  tiFeatures         Json? // TI lookup results
+  textFeatures       Json? // Extracted text, persuasion signals
+  screenshotFeatures Json? // Screenshot analysis results
+
+  // Metadata
+  featureVersion String   @default("1.0") // Feature extractor version
+  extractedAt    DateTime @default(now())
+  expiresAt      DateTime // TTL-based expiration
+  accessCount    Int      @default(0)
+  lastAccessedAt DateTime @default(now())
+
+  @@index([urlHash])
+  @@index([expiresAt])
+  @@map("v2_feature_store")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V2 TRAINING JOBS
+// Tracks ML model training jobs
+// ═══════════════════════════════════════════════════════════════════════════
+
+model V2TrainingJob {
+  id        String @id @default(cuid())
+  jobName   String @unique
+  modelType String // "url_lexical_b", "tabular_risk", "text_persuasion", "screenshot_cnn", "combiner"
+
+  // Training Configuration
+  datasetId       String // Reference to V2TrainingDataset
+  trainingSplit   Float  @default(0.8) // 80% train, 20% validation
+  validationSplit Float  @default(0.2)
+  batchSize       Int    @default(32)
+  epochs          Int    @default(10)
+  learningRate    Float  @default(0.001)
+
+  // Vertex AI Details
+  vertexJobId   String?
+  vertexRegion  String  @default("us-central1")
+  vertexProject String  @default("elara-mvp-13082025-u1")
+
+  // Job Status
+  status       String  @default("pending") // "pending", "running", "completed", "failed", "cancelled"
+  progress     Float   @default(0.0) // 0-1
+  currentEpoch Int     @default(0)
+  errorMessage String?
+
+  // Training Metrics (JSON)
+  trainingMetrics   Json? // {loss, accuracy, precision, recall per epoch}
+  validationMetrics Json? // {val_loss, val_accuracy, etc.}
+  finalMetrics      Json? // Final test set metrics
+
+  // Model Outputs
+  modelArtifactPath String? // GCS path to trained model
+  checkpointPath    String?
+  tensorboardPath   String?
+
+  // Resource Usage
+  trainingDuration Int? // seconds
+  gpuHours         Float?
+  estimatedCost    Float?
+
+  // Deployment
+  deployedModelId String? // Reference to V2ModelRegistry
+  deployedAt      DateTime?
+
+  // Metadata
+  startedBy   String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([modelType])
+  @@index([status])
+  @@index([createdAt])
+  @@map("v2_training_jobs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V2 MODEL PERFORMANCE
+// Tracks deployed model performance over time
+// ═══════════════════════════════════════════════════════════════════════════
+
+model V2ModelPerformance {
+  id        String @id @default(cuid())
+  modelId   String // Reference to V2ModelRegistry
+  modelName String
+
+  // Time Window
+  windowStart DateTime
+  windowEnd   DateTime
+
+  // Request Metrics
+  totalRequests   Int  @default(0)
+  successfulScans Int  @default(0)
+  failedScans     Int  @default(0)
+  avgLatency      Int // ms
+  p50Latency      Int?
+  p95Latency      Int?
+  p99Latency      Int?
+
+  // Accuracy Metrics (if ground truth available)
+  truePositives  Int    @default(0)
+  falsePositives Int    @default(0)
+  trueNegatives  Int    @default(0)
+  falseNegatives Int    @default(0)
+  precision      Float?
+  recall         Float?
+  f1Score        Float?
+  accuracy       Float?
+
+  // Business Metrics
+  blockedMalicious Int @default(0)
+  allowedBenign    Int @default(0)
+  userReports      Int @default(0) // User-reported false positives/negatives
+
+  // Cost Tracking
+  totalCost      Float? // Vertex AI inference cost
+  costPerRequest Float?
+
+  // Metadata
+  recordedAt DateTime @default(now())
+
+  @@index([modelId])
+  @@index([modelName])
+  @@index([windowStart])
+  @@map("v2_model_performance")
+}
