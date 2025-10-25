@@ -404,16 +404,13 @@ export function createFeatureExtractor(): FeatureExtractor {
 
 /**
  * Utility: Load TI data for feature extraction
- * This would integrate with the existing threat intelligence service
+ * Integrates with V2 TI Integration Service
  */
 export async function loadTIDataForFeatures(url: string): Promise<{
   totalHits: number;
   tier1Hits: number;
 }> {
-  // TODO: Integrate with existing TI service
-  // For now, return placeholder
-  return {
-    totalHits: 0,
-    tier1Hits: 0
-  };
+  // Use V2 TI Integration Service
+  const { loadTIDataForV2Features } = await import('../../services/threat-intel/v2-ti-integration.service.js');
+  return await loadTIDataForV2Features(url);
 }

@@ -23,6 +23,7 @@ import ThreatIntelligence from './pages/admin/ThreatIntelligence';
 import ThreatIntelConfig from './pages/admin/ThreatIntelConfig';
 import WhatsAppDashboard from './pages/admin/WhatsAppDashboard';
 import ScanEngineAdmin from './pages/admin/ScanEngineAdmin';
+import V2ScannerConfig from './pages/admin/V2ScannerConfig';
 import GlobalSettings from './pages/admin/GlobalSettings';
 import { Dashboard } from './pages/Dashboard';
 
@@ -74,6 +75,7 @@ const AppRoutes = () => {
         <Route path="admin/threat-intel-config" element={<ThreatIntelConfig />} />
         <Route path="admin/whatsapp" element={<WhatsAppDashboard />} />
         <Route path="admin/scan-engine" element={<ScanEngineAdmin />} />
+        <Route path="admin/v2-scanner" element={<V2ScannerConfig />} />
         <Route path="admin/global-settings" element={<GlobalSettings />} />
         <Route path="chatbot/admin" element={<ChatbotAdmin />} />
         {/* Catch-all 404 route */}

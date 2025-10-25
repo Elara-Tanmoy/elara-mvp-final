@@ -14,6 +14,7 @@ import { AdminScansController } from '../controllers/admin/scans.controller.js';
 import { AdminAnalyticsController } from '../controllers/admin/analytics.controller.js';
 import { AdminHealthController } from '../controllers/admin/health.controller.js';
 import { scanConfigAdminController } from '../controllers/scan-config-admin.controller.js';
+import { v2ConfigController } from '../controllers/admin/v2-config.controller.js';
 
 const router = Router();
 
@@ -54,6 +55,35 @@ router.post('/preset/:presetName/apply', (req, res) => scanConfigAdminController
 
 // Statistics
 router.get('/stats', (req, res) => scanConfigAdminController.getScanStatistics(req, res));
+
+// ========================================
+// V2 Scanner Configuration Routes
+// ========================================
+// Get/Update V2 Configuration
+router.get('/v2-config', (req, res) => v2ConfigController.getConfig(req, res));
+router.put('/v2-config', (req, res) => v2ConfigController.updateConfig(req, res));
+
+// Enable/Disable & Rollout
+router.put('/v2-config/enabled', (req, res) => v2ConfigController.setEnabled(req, res));
+router.put('/v2-config/rollout', (req, res) => v2ConfigController.setRollout(req, res));
+router.put('/v2-config/shadow-mode', (req, res) => v2ConfigController.setShadowMode(req, res));
+
+// Organization Management
+router.post('/v2-config/organizations/:orgId/enable', (req, res) => v2ConfigController.enableForOrganization(req, res));
+router.post('/v2-config/organizations/:orgId/disable', (req, res) => v2ConfigController.disableForOrganization(req, res));
+
+// Vertex AI Endpoints & Configuration
+router.put('/v2-config/endpoints', (req, res) => v2ConfigController.updateEndpoints(req, res));
+router.put('/v2-config/thresholds', (req, res) => v2ConfigController.updateThresholds(req, res));
+router.put('/v2-config/weights', (req, res) => v2ConfigController.updateWeights(req, res));
+
+// Statistics & Monitoring
+router.get('/v2-config/stats', (req, res) => v2ConfigController.getStats(req, res));
+router.get('/v2-config/models', (req, res) => v2ConfigController.getModels(req, res));
+router.get('/v2-config/training-datasets', (req, res) => v2ConfigController.getTrainingDatasets(req, res));
+
+// V1 vs V2 Comparison (Shadow Testing)
+router.post('/v2-config/compare', (req, res) => v2ConfigController.compareResults(req, res));
 
 // ========================================
 // PHASE 1: Enterprise Features - Check Definition Management

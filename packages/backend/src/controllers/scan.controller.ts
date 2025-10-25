@@ -68,6 +68,10 @@ export class ScanController {
       const validatedData = urlScanSchema.parse(req.body);
       const contentHash = generateContentHash(validatedData.url);
 
+      // V2 Scanner: Extract version from query parameter (?version=v2)
+      const scanEngineVersion = req.query.version === 'v2' ? 'v2' : 'v1';
+      logger.info(`[Scan Controller] Initiating ${scanEngineVersion} scan for ${validatedData.url}`);
+
       // Create scan result
       const scanResult = await prisma.scanResult.create({
         data: {
@@ -76,7 +80,8 @@ export class ScanController {
           contentHash,
           status: 'pending',
           userId: req.user!.userId,
-          organizationId: req.user!.organizationId
+          organizationId: req.user!.organizationId,
+          scanEngineVersion // Store requested version
         }
       });
 
@@ -84,7 +89,8 @@ export class ScanController {
       if (scanQueue) {
         await scanQueue.add('scan-url', {
           scanId: scanResult.id,
-          url: validatedData.url
+          url: validatedData.url,
+          scanEngineVersion // Pass to processor
         });
 
         // Audit log
