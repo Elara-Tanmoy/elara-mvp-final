@@ -25,6 +25,8 @@ import ThreatIntelConfig from './pages/admin/ThreatIntelConfig';
 import WhatsAppDashboard from './pages/admin/WhatsAppDashboard';
 import ScanEngineAdmin from './pages/admin/ScanEngineAdmin';
 import GlobalSettings from './pages/admin/GlobalSettings';
+import GlobalSettingsNew from './pages/admin/GlobalSettingsNew';
+import { Dashboard } from './pages/Dashboard';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -58,6 +60,7 @@ const AppRoutes = () => {
         }
       >
         <Route index element={<HomeAccessible />} />
+        <Route path="dashboard" element={<Dashboard />} />
         <Route path="scan/url" element={<URLScannerAccessible />} />
         <Route path="scan/message" element={<MessageScanner />} />
         <Route path="scan/file" element={<FileScanner />} />
@@ -75,6 +78,7 @@ const AppRoutes = () => {
         <Route path="admin/whatsapp" element={<WhatsAppDashboard />} />
         <Route path="admin/scan-engine" element={<ScanEngineAdmin />} />
         <Route path="admin/global-settings" element={<GlobalSettings />} />
+        <Route path="admin/global-settings-new" element={<GlobalSettingsNew />} />
         <Route path="chatbot/admin" element={<ChatbotAdmin />} />
         {/* Catch-all 404 route */}
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,0 +1,72 @@
+/* Elara Signature System (ESS) - Base Styles */
+
+:root {
+  --surface-base: #ffffff;
+  --surface-elevated: #f8fafc;
+  --surface-sunken: #f1f5f9;
+  --surface-overlay: rgba(15, 23, 42, 0.75);
+  --border-default: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-subtle: #f1f5f9;
+  --border-focus: #2563eb;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --text-disabled: #cbd5e1;
+  --text-inverse: #ffffff;
+  --text-link: #1d4ed8;
+  --text-link-hover: #1e40af;
+}
+
+.dark {
+  --surface-base: #0f172a;
+  --surface-elevated: #1e293b;
+  --surface-sunken: #020617;
+  --surface-overlay: rgba(0, 0, 0, 0.85);
+  --border-default: #334155;
+  --border-strong: #475569;
+  --border-subtle: #1e293b;
+  --border-focus: #3b82f6;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-disabled: #475569;
+  --text-inverse: #0f172a;
+  --text-link: #60a5fa;
+  --text-link-hover: #93c5fd;
+}
+
+.notched {
+  border-radius: 0.75rem;
+  position: relative;
+}
+
+.notched::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0.75rem;
+  height: 0.75rem;
+  background: var(--surface-base);
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+}
+
+.spectral-thread::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #2563eb 0%, #7e22ce 25%, #a855f7 50%, #7e22ce 75%, #2563eb 100%);
+  background-size: 200% 100%;
+  animation: spectral-shimmer 2s ease infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spectral-thread::before {
+    animation: none;
+    background: linear-gradient(90deg, #2563eb, #a855f7);
+  }
+}

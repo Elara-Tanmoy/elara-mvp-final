@@ -332,11 +332,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.style.setProperty(`--color-${key}`, value);
     });
 
-    // Apply dark class to body
+    // Apply dark class to html element (for Tailwind dark mode)
     if (isDark) {
-      document.body.classList.add('dark');
+      root.classList.add('dark');
     } else {
-      document.body.classList.remove('dark');
+      root.classList.remove('dark');
     }
 
     // Set background color
