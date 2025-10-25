@@ -25,7 +25,6 @@ import {
   Database,
   Eye,
   EyeOff,
-  Users,
   BarChart3,
   RefreshCw,
   CheckCircle,
@@ -572,7 +571,7 @@ export default function V2ScannerConfig() {
                         step="0.01"
                         min="0"
                         max="1"
-                        value={value}
+                        value={value as number}
                         onChange={(e) => {
                           const newThresholds = { ...config.branchThresholds };
                           newThresholds[branch as keyof BranchThresholds][level as keyof ThresholdSet] = parseFloat(e.target.value);
