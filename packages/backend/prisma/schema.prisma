@@ -65,7 +65,7 @@ model User {
 }
 
 model ScanResult {
-  id                   String         @id @default(cuid())
+  id                   String     @id @default(cuid())
   scanType             ScanType
   contentHash          String
   url                  String?
@@ -73,10 +73,10 @@ model ScanResult {
   fileName             String?
   fileSize             Int?
   fileMimeType         String?
-  riskScore            Int            @default(0)
-  riskLevel            RiskLevel      @default(safe)
-  status               ScanStatus     @default(pending)
-  findings             Json           @default("[]")
+  riskScore            Int        @default(0)
+  riskLevel            RiskLevel  @default(safe)
+  status               ScanStatus @default(pending)
+  findings             Json       @default("[]")
   aiAnalysis           Json?
   scanDuration         Int?
   // CRITICAL FIX: Add fields for file scanning with OCR and AI analysis
@@ -86,14 +86,24 @@ model ScanResult {
   ocrText              String? // OCR-extracted text from images
   ocrConfidence        Float? // OCR confidence score (0-100)
   extractedText        String? // Extracted text from files (PDF, etc.)
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
-  userId               String
-  organizationId       String
-  auditLogs            AuditLog[]
-  riskCategories       RiskCategory[]
-  organization         Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // V2 Scanner Fields
+  scanEngineVersion  String? @default("v1") // 'v1' or 'v2'
+  probability        Float? // V2 malicious probability (0-1)
+  confidenceInterval Json? // V2 confidence interval {lower, upper}
+  decisionGraph      Json? // V2 decision path and reasoning
+  policyOverride     Json? // V2 policy rule overrides
+  stage1Results      Json? // V2 Stage-1 model results
+  stage2Results      Json? // V2 Stage-2 model results (if triggered)
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  userId         String
+  organizationId String
+  auditLogs      AuditLog[]
+  riskCategories RiskCategory[]
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([organizationId])
@@ -1336,7 +1346,7 @@ model GlobalSetting {
   environment String @default("all") // all, dev, staging, prod
 
   // Version control
-  version     Int     @default(1)
+  version       Int     @default(1)
   previousValue String? // Last value before update
 
   // Metadata
@@ -1542,8 +1552,8 @@ model ProfileAnalyzerConfig {
   facebookApiKey   String?
 
   // Bot Detection
-  botDetectionThreshold Float @default(0.7)
-  fakeAccountIndicators Json  @default("[]")
+  botDetectionThreshold Float   @default(0.7)
+  fakeAccountIndicators Json    @default("[]")
   checkFollowerRatio    Boolean @default(true)
   checkActivityPattern  Boolean @default(true)
 
@@ -1596,15 +1606,15 @@ model DeepfakeConfig {
   imageModel String @default("efficientnet") // efficientnet, xception
 
   // Model API Keys (if using external services)
-  awsRekognitionKey    String? // Encrypted
-  googleVideoApiKey    String? // Encrypted
-  deepwareApiKey       String? // Encrypted
-  sensityApiKey        String? // Encrypted
+  awsRekognitionKey String? // Encrypted
+  googleVideoApiKey String? // Encrypted
+  deepwareApiKey    String? // Encrypted
+  sensityApiKey     String? // Encrypted
 
   // Analysis Parameters
-  frameSamplingRate Int     @default(10) // frames per second
-  audioChunkSize    Int     @default(1024)
-  minResolution     Int     @default(720)
+  frameSamplingRate   Int     @default(10) // frames per second
+  audioChunkSize      Int     @default(1024)
+  minResolution       Int     @default(720)
   enableGpuProcessing Boolean @default(true)
 
   // Thresholds
@@ -1645,21 +1655,21 @@ model DeepfakeConfig {
 // ═══════════════════════════════════════════════════════════════════════════
 
 model CheckType {
-  id                  String   @id @default(cuid())
-  name                String
-  category            String   // SSL/TLS, Domain Age, DNS, URL Structure, etc.
-  description         String
-  severity            String   // low, medium, high, critical
-  pointsDeducted      Int      @default(5)
-  enabled             Boolean  @default(true)
-  automationCapable   Boolean  @default(true)
-  requiresManualReview Boolean @default(false)
-  apiIntegration      String?  // whois-json, virustotal, puppeteer, axios, node:dns, etc.
-  apiEndpoint         String?  // API endpointUrl if external
-  credentialsRequired Boolean  @default(false)
-  config              Json?    @default("{}") // Check-specific configuration
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  name                 String
+  category             String // SSL/TLS, Domain Age, DNS, URL Structure, etc.
+  description          String
+  severity             String // low, medium, high, critical
+  pointsDeducted       Int      @default(5)
+  enabled              Boolean  @default(true)
+  automationCapable    Boolean  @default(true)
+  requiresManualReview Boolean  @default(false)
+  apiIntegration       String? // whois-json, virustotal, puppeteer, axios, node:dns, etc.
+  apiEndpoint          String? // API endpointUrl if external
+  credentialsRequired  Boolean  @default(false)
+  config               Json?    @default("{}") // Check-specific configuration
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@unique([name, category], name: "name_category")
   @@index([category])
@@ -1674,27 +1684,27 @@ model CheckType {
 // ═══════════════════════════════════════════════════════════════════════════
 
 model V2ScannerConfig {
-  id                 String  @id @default(cuid())
-  name               String  @unique @default("default")
-  description        String?
-  isActive           Boolean @default(false) // Start with V2 disabled
-  isDefault          Boolean @default(true)
+  id          String  @id @default(cuid())
+  name        String  @unique @default("default")
+  description String?
+  isActive    Boolean @default(false) // Start with V2 disabled
+  isDefault   Boolean @default(true)
 
   // Engine Selection
-  enabledForOrgs     String[] @default([]) // Organization IDs that have V2 enabled
-  rolloutPercentage  Int      @default(0) // Gradual rollout (0-100)
-  shadowMode         Boolean  @default(true) // Run V2 in background for comparison
+  enabledForOrgs    String[] @default([]) // Organization IDs that have V2 enabled
+  rolloutPercentage Int      @default(0) // Gradual rollout (0-100)
+  shadowMode        Boolean  @default(true) // Run V2 in background for comparison
 
   // Vertex AI Endpoints
-  urlLexicalBEndpoint      String? // PhishBERT endpoint
-  tabularRiskEndpoint      String? // Monotonic XGBoost endpoint
-  textPersuasionEndpoint   String? // Gemma/Mixtral endpoint
-  screenshotCnnEndpoint    String? // EfficientNet endpoint
-  combinerEndpoint         String? // Calibrated combiner endpoint
+  urlLexicalBEndpoint    String? // PhishBERT endpoint
+  tabularRiskEndpoint    String? // Monotonic XGBoost endpoint
+  textPersuasionEndpoint String? // Gemma/Mixtral endpoint
+  screenshotCnnEndpoint  String? // EfficientNet endpoint
+  combinerEndpoint       String? // Calibrated combiner endpoint
 
   // Stage Thresholds
-  stage2ConfidenceThreshold Float   @default(0.85) // Skip Stage-2 if Stage-1 confidence > this
-  
+  stage2ConfidenceThreshold Float @default(0.85) // Skip Stage-2 if Stage-1 confidence > this
+
   // Branch-Specific Thresholds (JSON: {ONLINE: {...}, OFFLINE: {...}, ...})
   branchThresholds Json @default("{\"ONLINE\":{\"safe\":0.15,\"low\":0.30,\"medium\":0.50,\"high\":0.75,\"critical\":0.90},\"OFFLINE\":{\"safe\":0.25,\"low\":0.45,\"medium\":0.65,\"high\":0.85,\"critical\":0.95}}")
 
@@ -1703,48 +1713,48 @@ model V2ScannerConfig {
   stage2Weights Json @default("{\"text\":0.60,\"screenshot\":0.40}")
 
   // Calibration Config
-  calibrationMethod     String  @default("ICP") // ICP, PLATT, ISOTONIC
-  calibrationAlpha      Float   @default(0.1) // 90% confidence interval
-  calibrationDataPath   String?
+  calibrationMethod   String  @default("ICP") // ICP, PLATT, ISOTONIC
+  calibrationAlpha    Float   @default(0.1) // 90% confidence interval
+  calibrationDataPath String?
 
   // Feature Store
-  featureStoreType      String  @default("firestore") // firestore or vertex
-  firestoreCollection   String  @default("v2_features")
-  vertexFeatureStore    String?
-  featureCacheTTL       Int     @default(3600) // 1 hour
+  featureStoreType    String  @default("firestore") // firestore or vertex
+  firestoreCollection String  @default("v2_features")
+  vertexFeatureStore  String?
+  featureCacheTTL     Int     @default(3600) // 1 hour
 
   // Timeouts (ms)
-  timeoutReachability   Int     @default(10000)
-  timeoutEvidence       Int     @default(30000)
-  timeoutStage1         Int     @default(5000)
-  timeoutStage2         Int     @default(10000)
-  timeoutTotal          Int     @default(60000)
+  timeoutReachability Int @default(10000)
+  timeoutEvidence     Int @default(30000)
+  timeoutStage1       Int @default(5000)
+  timeoutStage2       Int @default(10000)
+  timeoutTotal        Int @default(60000)
 
   // Gemini Router Config
-  geminiProjectId       String  @default("elara-mvp-13082025-u1")
-  geminiLocation        String  @default("us-central1")
-  geminiCacheTTL        Int     @default(3600)
-  geminiEnableCaching   Boolean @default(true)
+  geminiProjectId          String  @default("elara-mvp-13082025-u1")
+  geminiLocation           String  @default("us-central1")
+  geminiCacheTTL           Int     @default(3600)
+  geminiEnableCaching      Boolean @default(true)
   geminiEnableCostTracking Boolean @default(true)
 
   // TI Integration
-  enableTIGate          Boolean @default(true)
-  tiDualTier1Threshold  Int     @default(2) // Block if >= 2 tier-1 TI hits
+  enableTIGate         Boolean @default(true)
+  tiDualTier1Threshold Int     @default(2) // Block if >= 2 tier-1 TI hits
 
   // Performance Monitoring
-  enableMetrics         Boolean @default(true)
-  enableLogging         Boolean @default(true)
-  logLevel              String  @default("info")
+  enableMetrics Boolean @default(true)
+  enableLogging Boolean @default(true)
+  logLevel      String  @default("info")
 
   // A/B Testing
-  abTestingEnabled      Boolean @default(false)
-  abTestVariant         String? // control, v2, hybrid
+  abTestingEnabled Boolean @default(false)
+  abTestVariant    String? // control, v2, hybrid
 
   // Metadata
-  createdBy             String?
-  lastEditedBy          String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdBy    String?
+  lastEditedBy String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([isActive])
   @@index([isDefault])
@@ -1757,38 +1767,38 @@ model V2ScannerConfig {
 // ═══════════════════════════════════════════════════════════════════════════
 
 model V2TrainingDataset {
-  id                String          @id @default(cuid())
-  name              String
-  description       String?
-  datasetType       String // phishing_urls, benign_urls, mixed, custom
-  source            String // phishtank, urlhaus, tranco, manual_upload
-  
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  datasetType String // phishing_urls, benign_urls, mixed, custom
+  source      String // phishtank, urlhaus, tranco, manual_upload
+
   // Data Location
-  bigQueryDataset   String?
-  bigQueryTable     String?
-  gcsPath           String?
-  
+  bigQueryDataset String?
+  bigQueryTable   String?
+  gcsPath         String?
+
   // Statistics
-  totalRecords      Int      @default(0)
-  phishingCount     Int      @default(0)
-  benignCount       Int      @default(0)
-  
+  totalRecords  Int @default(0)
+  phishingCount Int @default(0)
+  benignCount   Int @default(0)
+
   // Processing Status
-  status            String   @default("pending") // pending, processing, completed, failed
-  processedRecords  Int      @default(0)
-  errorMessage      String?
-  
+  status           String  @default("pending") // pending, processing, completed, failed
+  processedRecords Int     @default(0)
+  errorMessage     String?
+
   // Training Usage
-  usedForTraining   Boolean  @default(false)
-  trainingJobId     String?
-  modelVersion      String?
-  
+  usedForTraining Boolean @default(false)
+  trainingJobId   String?
+  modelVersion    String?
+
   // Metadata
-  uploadedBy        String?
-  organizationId    String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  processedAt       DateTime?
+  uploadedBy     String?
+  organizationId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  processedAt    DateTime?
 
   @@index([datasetType])
   @@index([status])
@@ -1802,36 +1812,36 @@ model V2TrainingDataset {
 // ═══════════════════════════════════════════════════════════════════════════
 
 model V2ModelRegistry {
-  id                String   @id @default(cuid())
-  modelName         String // url_lexical_b, tabular_risk, text_persuasion, screenshot_cnn, combiner
-  modelVersion      String
-  modelType         String // classifier, regressor, encoder
-  
+  id           String @id @default(cuid())
+  modelName    String // url_lexical_b, tabular_risk, text_persuasion, screenshot_cnn, combiner
+  modelVersion String
+  modelType    String // classifier, regressor, encoder
+
   // Vertex AI Details
-  vertexModelId     String?
-  vertexEndpoint    String?
-  vertexLocation    String   @default("us-central1")
-  
+  vertexModelId  String?
+  vertexEndpoint String?
+  vertexLocation String  @default("us-central1")
+
   // Training Details
-  trainingDataset   String? // Reference to V2TrainingDataset ID
-  trainingJobId     String?
-  trainingMetrics   Json? // {accuracy, precision, recall, f1, auc}
-  
+  trainingDataset String? // Reference to V2TrainingDataset ID
+  trainingJobId   String?
+  trainingMetrics Json? // {accuracy, precision, recall, f1, auc}
+
   // Deployment
-  deploymentStatus  String   @default("not_deployed") // not_deployed, deploying, deployed, failed
-  isActive          Boolean  @default(false)
+  deploymentStatus String  @default("not_deployed") // not_deployed, deploying, deployed, failed
+  isActive         Boolean @default(false)
   endpointUrl      String?
-  
+
   // Performance
-  avgLatency        Int? // ms
-  throughput        Int? // requests per second
-  errorRate         Float? // 0-1
-  
+  avgLatency Int? // ms
+  throughput Int? // requests per second
+  errorRate  Float? // 0-1
+
   // Metadata
-  deployedBy        String?
-  deployedAt        DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  deployedBy String?
+  deployedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([modelName, modelVersion])
   @@index([modelName])
@@ -1839,4 +1849,3 @@ model V2ModelRegistry {
   @@index([deploymentStatus])
   @@map("v2_model_registry")
 }
-
