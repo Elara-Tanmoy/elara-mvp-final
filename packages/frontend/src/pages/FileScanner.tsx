@@ -1,5 +1,12 @@
+/**
+ * FILE SCANNER - ESS DESIGN
+ * OCR-powered multi-file threat analysis
+ * Mobile-first with Elara Signature System
+ */
+
 import React, { useState } from 'react';
-import { FileText, Loader2 } from 'lucide-react';
+import { FileText, Loader2, ArrowLeft, Scan } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, Button } from '../components/ui';
 import api from '../lib/api';
 import { MultiFileUpload } from '../components/MultiFileUpload';
 import { ScanResultsEnhanced } from '../components/ScanResultsEnhanced';
@@ -65,98 +72,148 @@ const FileScanner: React.FC = () => {
     fetchScans();
   }, [scanIds]);
 
+  // Results View
   if (scanIds.length > 0 && scans.length > 0 && scans.every(s => s.status === 'completed')) {
     return (
-      <div className="max-w-6xl mx-auto space-y-6">
-        <button
-          onClick={handleNewScan}
-          className="flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          New Scan
-        </button>
-        {scans.map((scan, idx) => (
-          <div key={scan.id || idx}>
-            <h2 className="text-xl font-bold text-gray-900 mb-3">File {idx + 1}: {scan.fileName}</h2>
-            <ScanResultsEnhanced result={scan} scanType="file" />
-          </div>
-        ))}
+      <div className="min-h-screen bg-surface-base p-4 sm:p-6 lg:p-8">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <Button onClick={handleNewScan} variant="secondary" className="mb-4">
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            New Scan
+          </Button>
+          {scans.map((scan, idx) => (
+            <div key={scan.id || idx} className="space-y-4">
+              <Card notched className="bg-primary-50 border-2 border-primary-200">
+                <CardContent className="p-4">
+                  <h2 className="text-xl font-bold text-text-primary">
+                    File {idx + 1}: {scan.fileName}
+                  </h2>
+                </CardContent>
+              </Card>
+              <ScanResultsEnhanced result={scan} scanType="file" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
+  // Scanning View
   if (scanIds.length > 0 && isScanning) {
     return (
-      <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8">
-        <div className="flex flex-col items-center justify-center py-12">
-          <Loader2 className="w-16 h-16 text-primary-600 animate-spin mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Scanning Files</h2>
-          <p className="text-gray-600">Extracting text and analyzing for threats...</p>
+      <div className="min-h-screen bg-surface-base p-4 sm:p-6 lg:p-8">
+        <div className="max-w-4xl mx-auto">
+          <Card notched elevated className="spectral-thread">
+            <CardContent className="p-12">
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="w-16 h-16 sm:w-20 sm:h-20 text-primary-600 animate-spin mb-6" />
+                <h2 className="text-2xl sm:text-3xl font-bold text-text-primary mb-3 text-center">
+                  Scanning Files
+                </h2>
+                <p className="text-lg text-text-secondary text-center">
+                  Extracting text with OCR and analyzing for threats...
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
   }
 
+  // Upload Form View
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-white shadow-lg rounded-lg p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <FileText className="w-8 h-8 text-primary-600" />
-          <h1 className="text-3xl font-bold text-gray-900">File Threat Scanner</h1>
-        </div>
+    <div className="min-h-screen bg-surface-base p-4 sm:p-6 lg:p-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <Card notched className="bg-gradient-to-br from-primary-600 to-primary-800 text-white">
+          <CardContent className="p-6 sm:p-8">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <FileText className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0" />
+              <div className="text-center sm:text-left">
+                <h1 className="text-3xl sm:text-4xl font-bold mb-2">
+                  File Threat Scanner
+                </h1>
+                <p className="text-lg sm:text-xl text-white/90">
+                  OCR-powered multi-file analysis with AI detection
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <p className="text-gray-600 mb-8">
-          Upload multiple images or PDFs for threat analysis. Our OCR-powered scanner extracts text
-          and analyzes for phishing, malware, and suspicious content with emotion/manipulation detection.
-        </p>
+        {/* Info Card */}
+        <Card notched className="bg-primary-50 border-2 border-primary-200">
+          <CardContent className="p-4 sm:p-6">
+            <p className="text-base sm:text-lg text-text-secondary">
+              Upload multiple images or PDFs for threat analysis. Our OCR scanner extracts text
+              and analyzes for phishing, malware, and suspicious content.
+            </p>
+          </CardContent>
+        </Card>
 
-        <MultiFileUpload
-          onFilesSelected={setSelectedFiles}
-          maxFiles={10}
-          maxFileSize={50 * 1024 * 1024}
-          acceptedTypes={['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf']}
-        />
+        {/* Upload Card */}
+        <Card notched elevated>
+          <CardContent className="p-6 sm:p-8">
+            <MultiFileUpload
+              onFilesSelected={setSelectedFiles}
+              maxFiles={10}
+              maxFileSize={50 * 1024 * 1024}
+              acceptedTypes={['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf']}
+            />
 
-        {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-            {error}
-          </div>
-        )}
+            {error && (
+              <Card className="mt-4 bg-red-50 border-2 border-red-300">
+                <CardContent className="p-4">
+                  <p className="text-sm text-red-800">{error}</p>
+                </CardContent>
+              </Card>
+            )}
 
-        <button
-          onClick={handleScan}
-          disabled={isScanning || selectedFiles.length === 0}
-          className="mt-6 w-full bg-primary-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
-        >
-          {isScanning ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Scanning {selectedFiles.length} file(s)...
-            </>
-          ) : (
-            <>
-              <FileText className="w-5 h-5" />
-              Scan {selectedFiles.length} File{selectedFiles.length !== 1 ? 's' : ''}
-            </>
-          )}
-        </button>
+            <Button
+              onClick={handleScan}
+              disabled={isScanning || selectedFiles.length === 0}
+              className="mt-6 w-full text-lg py-6"
+              size="lg"
+            >
+              {isScanning ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  Scanning {selectedFiles.length} file(s)...
+                </>
+              ) : (
+                <>
+                  <Scan className="w-5 h-5 mr-2" />
+                  Scan {selectedFiles.length} File{selectedFiles.length !== 1 ? 's' : ''}
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
 
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">Enhanced File Scanner Features</h3>
-          <ul className="space-y-1 text-sm text-blue-800">
-            <li>• Multi-file upload (up to 10 files)</li>
-            <li>• OCR text extraction from images</li>
-            <li>• PDF text analysis</li>
-            <li>• Emotion & manipulation detection</li>
-            <li>• Psychological trigger identification</li>
-            <li>• URL detection in images</li>
-            <li>• Phishing screenshot detection</li>
-            <li>• Metadata analysis (EXIF data)</li>
-            <li>• QR code phishing detection</li>
-          </ul>
-        </div>
+        {/* Features Card */}
+        <Card notched className="bg-surface-elevated">
+          <CardHeader>
+            <CardTitle>Scanner Capabilities</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-3">
+              {[
+                'Multi-file upload (up to 10 files)',
+                'OCR text extraction from images',
+                'PDF text and metadata analysis',
+                'AI-powered threat detection',
+                'Emotion and manipulation pattern recognition',
+                'QR code and embedded link scanning'
+              ].map((feature, index) => (
+                <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-surface-base">
+                  <FileText className="w-5 h-5 text-primary-500 flex-shrink-0 mt-1" />
+                  <span className="text-base text-text-primary">{feature}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
