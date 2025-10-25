@@ -9,8 +9,9 @@ import api from '../lib/api';
 import Dashboard from './admin/Dashboard';
 import ApiKeys from './admin/ApiKeys';
 import Webhooks from './admin/Webhooks';
+import V2Config from './admin/V2Config';
 
-type TabType = 'dashboard' | 'users' | 'subscriptions' | 'settings' | 'rate-limits' | 'integrations' | 'analytics' | 'api-keys' | 'webhooks';
+type TabType = 'dashboard' | 'users' | 'subscriptions' | 'settings' | 'rate-limits' | 'integrations' | 'analytics' | 'api-keys' | 'webhooks' | 'v2-config';
 
 interface DashboardStats {
   users: {
@@ -295,13 +296,14 @@ const AdminPanel: React.FC = () => {
 
   const tabs = [
     { id: 'dashboard' as TabType, label: 'Dashboard', icon: BarChart3 },
+    { id: 'v2-config' as TabType, label: 'V2 Scanner', icon: Zap },
     { id: 'analytics' as TabType, label: 'Analytics', icon: Activity },
     { id: 'users' as TabType, label: 'Users', icon: Users },
     { id: 'subscriptions' as TabType, label: 'Subscriptions', icon: CreditCard },
     { id: 'api-keys' as TabType, label: 'API Keys', icon: Key },
     { id: 'webhooks' as TabType, label: 'Webhooks', icon: Webhook },
     { id: 'settings' as TabType, label: 'Settings', icon: SettingsIcon },
-    { id: 'rate-limits' as TabType, label: 'Rate Limits', icon: Zap },
+    { id: 'rate-limits' as TabType, label: 'Rate Limits', icon: Shield },
     { id: 'integrations' as TabType, label: 'Integrations', icon: Link2 }
   ];
 
@@ -994,6 +996,9 @@ const AdminPanel: React.FC = () => {
 
       {/* Webhooks Tab */}
       {activeTab === 'webhooks' && <Webhooks />}
+
+      {/* V2 Config Tab */}
+      {activeTab === 'v2-config' && <V2Config />}
     </div>
   );
 };

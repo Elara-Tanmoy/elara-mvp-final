@@ -22,9 +22,8 @@ import { createStage1Runner, hasVertexAIConfigured } from './stage1';
 import { createStage2Runner, shouldSkipStage2 } from './stage2';
 import { createCombiner, getDefaultBranchThresholds } from './combiner';
 import { createPolicyEngine, probabilityToRiskLevel } from './policy';
-import { virusTotalService } from '../services/external-apis/virustotal.service.js';
-import { scamAdviserService } from '../services/external-apis/scamadviser.service.js';
-import { geminiScanSummarizerService } from '../services/ai/gemini-scan-summarizer.service.js';
+// External API services removed - using only Vertex AI and internal checks
+import { geminiScanSummarizerService } from '../../services/ai/gemini-scan-summarizer.service.js';
 import type {
   EnhancedScanResult,
   V2ScanOptions,
@@ -174,17 +173,7 @@ export class URLScannerV2 {
       );
       latency.policy = Date.now() - policyStart;
 
-      // Step 9.5: External API Checks (run in parallel)
-      const [virusTotalResult, scamAdviserResult] = await Promise.all([
-        virusTotalService.checkUrl(canonicalUrl).catch(err => {
-          console.warn('[V2Scanner] VirusTotal check failed:', err.message);
-          return null;
-        }),
-        scamAdviserService.checkWebsite(canonicalUrl).catch(err => {
-          console.warn('[V2Scanner] ScamAdviser check failed:', err.message);
-          return null;
-        })
-      ]);
+      // Step 9.5: External API checks removed - using only Vertex AI models and internal TI sources
 
       // Determine final risk level
       let riskLevel: RiskLevel;
@@ -237,26 +226,6 @@ export class URLScannerV2 {
 
         screenshotUrl: evidence.screenshot?.url,
         skippedChecks: this.getSkippedChecks(options, reachability.status),
-
-        // External API results
-        externalAPIs: {
-          virusTotal: virusTotalResult ? {
-            detected: virusTotalResult.detected,
-            positives: virusTotalResult.positives,
-            total: virusTotalResult.total,
-            scanDate: virusTotalResult.scanDate,
-            permalink: virusTotalResult.permalink,
-            engines: virusTotalResult.engines
-          } : undefined,
-          scamAdviser: scamAdviserResult ? {
-            trustScore: scamAdviserResult.trustScore,
-            riskLevel: scamAdviserResult.riskLevel,
-            country: scamAdviserResult.country,
-            age: scamAdviserResult.age,
-            warnings: scamAdviserResult.warnings,
-            badges: scamAdviserResult.badges
-          } : undefined
-        },
 
         latency,
 

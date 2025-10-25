@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Link as LinkIcon, Mail, FileText, UserCheck, Search, GraduationCap, Heart, Sparkles, Crown, Zap, AlertCircle, Shield, Globe, Lock, ExternalLink } from 'lucide-react';
+import { Link as LinkIcon, Mail, FileText, UserCheck, Search, GraduationCap, Heart, Sparkles, Crown, Zap, AlertCircle, Shield, Globe, Lock, ExternalLink, TrendingUp, Activity } from 'lucide-react';
 import ChatbotWidget from '../components/ChatbotWidget';
 import EmbeddedChatbot from '../components/EmbeddedChatbot';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../lib/api';
 
 const Home: React.FC = () => {
   const { user, organization } = useAuth();
   const navigate = useNavigate();
   const [usageStats, setUsageStats] = useState<any>(null);
+  const [v2Stats, setV2Stats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const tier = organization?.tier || 'free';
   const isPremium = tier === 'premium' || tier === 'enterprise';
@@ -17,20 +20,46 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     loadUsageStats();
+    loadV2Stats();
   }, []);
 
   const loadUsageStats = async () => {
     try {
-      // In production, this would fetch actual usage from an API endpoint
-      // For now, we'll use mock data
+      // Try to fetch real stats from API
+      const response = await api.get('/v2/scans/stats');
       setUsageStats({
-        scansToday: 12,
-        scansThisMonth: 45,
+        scansToday: response.data.scansToday || 0,
+        scansThisMonth: response.data.scansThisMonth || 0,
         maxScansPerDay: tier === 'free' ? 50 : tier === 'premium' ? 500 : 10000,
         maxScansPerMonth: tier === 'free' ? 1000 : tier === 'premium' ? 10000 : 999999
       });
     } catch (error) {
       console.error('Error loading usage stats:', error);
+      // Fallback to mock data if API fails
+      setUsageStats({
+        scansToday: 0,
+        scansThisMonth: 0,
+        maxScansPerDay: tier === 'free' ? 50 : tier === 'premium' ? 500 : 10000,
+        maxScansPerMonth: tier === 'free' ? 1000 : tier === 'premium' ? 10000 : 999999
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadV2Stats = async () => {
+    try {
+      const response = await api.get('/v2/admin/v2-stats');
+      setV2Stats(response.data.data);
+    } catch (error) {
+      console.error('Error loading V2 stats:', error);
+      // Set default stats if API fails
+      setV2Stats({
+        totalScans: 0,
+        scansToday: 0,
+        averageScore: 0,
+        v2Percentage: 100
+      });
     }
   };
 
