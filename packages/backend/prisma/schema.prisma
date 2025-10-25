@@ -1655,7 +1655,7 @@ model CheckType {
   automationCapable   Boolean  @default(true)
   requiresManualReview Boolean @default(false)
   apiIntegration      String?  // whois-json, virustotal, puppeteer, axios, node:dns, etc.
-  apiEndpoint         String?  // API endpoint URL if external
+  apiEndpoint         String?  // API endpointUrl if external
   credentialsRequired Boolean  @default(false)
   config              Json?    @default("{}") // Check-specific configuration
   createdAt           DateTime @default(now())
@@ -1820,7 +1820,7 @@ model V2ModelRegistry {
   // Deployment
   deploymentStatus  String   @default("not_deployed") // not_deployed, deploying, deployed, failed
   isActive          Boolean  @default(false)
-  endpoint URL      String?
+  endpointUrl      String?
   
   // Performance
   avgLatency        Int? // ms
