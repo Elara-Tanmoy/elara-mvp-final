@@ -95,6 +95,8 @@ model ScanResult {
   policyOverride     Json? // V2 policy rule overrides
   stage1Results      Json? // V2 Stage-1 model results
   stage2Results      Json? // V2 Stage-2 model results (if triggered)
+  externalAPIs       Json? // V2 External API results (VirusTotal, ScamAdviser)
+  aiSummary          Json? // V2 AI-generated summary from Gemini
 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt

@@ -22,6 +22,9 @@ import { createStage1Runner, hasVertexAIConfigured } from './stage1';
 import { createStage2Runner, shouldSkipStage2 } from './stage2';
 import { createCombiner, getDefaultBranchThresholds } from './combiner';
 import { createPolicyEngine, probabilityToRiskLevel } from './policy';
+import { virusTotalService } from '../services/external-apis/virustotal.service.js';
+import { scamAdviserService } from '../services/external-apis/scamadviser.service.js';
+import { geminiScanSummarizerService } from '../services/ai/gemini-scan-summarizer.service.js';
 import type {
   EnhancedScanResult,
   V2ScanOptions,
@@ -171,6 +174,18 @@ export class URLScannerV2 {
       );
       latency.policy = Date.now() - policyStart;
 
+      // Step 9.5: External API Checks (run in parallel)
+      const [virusTotalResult, scamAdviserResult] = await Promise.all([
+        virusTotalService.checkUrl(canonicalUrl).catch(err => {
+          console.warn('[V2Scanner] VirusTotal check failed:', err.message);
+          return null;
+        }),
+        scamAdviserService.checkWebsite(canonicalUrl).catch(err => {
+          console.warn('[V2Scanner] ScamAdviser check failed:', err.message);
+          return null;
+        })
+      ]);
+
       // Determine final risk level
       let riskLevel: RiskLevel;
       if (policyResult.overridden && policyResult.riskLevel) {
@@ -186,10 +201,10 @@ export class URLScannerV2 {
         combinerResult
       );
 
-      // Step 10: Build result
+      // Step 10: Build preliminary result
       latency.total = Date.now() - startTime;
 
-      const result: EnhancedScanResult = {
+      const preliminaryResult: EnhancedScanResult = {
         url: canonicalUrl,
         scanId,
         timestamp: new Date(),
@@ -223,12 +238,47 @@ export class URLScannerV2 {
         screenshotUrl: evidence.screenshot?.url,
         skippedChecks: this.getSkippedChecks(options, reachability.status),
 
+        // External API results
+        externalAPIs: {
+          virusTotal: virusTotalResult ? {
+            detected: virusTotalResult.detected,
+            positives: virusTotalResult.positives,
+            total: virusTotalResult.total,
+            scanDate: virusTotalResult.scanDate,
+            permalink: virusTotalResult.permalink,
+            engines: virusTotalResult.engines
+          } : undefined,
+          scamAdviser: scamAdviserResult ? {
+            trustScore: scamAdviserResult.trustScore,
+            riskLevel: scamAdviserResult.riskLevel,
+            country: scamAdviserResult.country,
+            age: scamAdviserResult.age,
+            warnings: scamAdviserResult.warnings,
+            badges: scamAdviserResult.badges
+          } : undefined
+        },
+
         latency,
 
         // Backward compatibility
         verdict: this.mapRiskLevelToVerdict(riskLevel),
         confidence: combinerResult.confidenceInterval.width < 0.2 ? 'high' :
           combinerResult.confidenceInterval.width < 0.4 ? 'medium' : 'low'
+      };
+
+      // Step 11: Generate AI summary (optional, don't fail scan if it errors)
+      let aiSummary;
+      try {
+        aiSummary = await geminiScanSummarizerService.summarizeScan(preliminaryResult);
+      } catch (error: any) {
+        console.warn('[V2Scanner] Failed to generate AI summary:', error.message);
+        aiSummary = undefined;
+      }
+
+      // Build final result with AI summary
+      const result: EnhancedScanResult = {
+        ...preliminaryResult,
+        aiSummary
       };
 
       return result;

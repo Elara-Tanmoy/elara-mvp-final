@@ -25,6 +25,7 @@ import oauthRoutes from './oauth.routes.js';
 import adminScanEngineRoutes from './admin.routes.js';
 import messageScanAdminRoutes from './message-scan-admin.routes.js';
 import globalSettingsRoutes from './admin/globalSettings.routes.js';
+import v2AIRoutes from './v2-ai.routes.js';
 import { whatsappWebhookController } from '../controllers/whatsapp-webhook.controller.js';
 import { whatsappAdminController } from '../controllers/whatsapp-admin.controller.js';
 
@@ -222,6 +223,11 @@ router.use('/v2/graph', authenticate, graphRoutes);
 
 // Deepfake & AI Content Detection routes (v2) - Protected (PHASE 2 ENHANCEMENT)
 router.use('/v2/ai', authenticate, deepfakeRoutes);
+
+// V2 AI API routes - Central AI API for B2B Partners (PHASE 2 ENHANCEMENT)
+logger.info('[Routes] Registering V2 AI API routes at /v2...');
+router.use('/v2', v2AIRoutes);
+logger.info('[Routes] V2 AI API routes registered (/v2/ai/analyze, /v2/ai/chat, /v2/scan/uri)');
 
 // Behavioral Biometrics routes (v2) - Protected (PHASE 2 ENHANCEMENT)
 router.use('/v2/behavior', authenticate, behaviorRoutes);

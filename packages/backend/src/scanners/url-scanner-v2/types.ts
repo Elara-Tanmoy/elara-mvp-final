@@ -406,6 +406,39 @@ export interface EnhancedScanResult {
   screenshotUrl?: string;
   skippedChecks: string[];
 
+  // External API results
+  externalAPIs?: {
+    virusTotal?: {
+      detected: boolean;
+      positives: number;
+      total: number;
+      scanDate?: Date;
+      permalink?: string;
+      engines?: Array<{
+        engine: string;
+        detected: boolean;
+        result?: string;
+      }>;
+    };
+    scamAdviser?: {
+      trustScore: number;
+      riskLevel: string;
+      country?: string;
+      age?: number;
+      warnings?: string[];
+      badges?: string[];
+    };
+  };
+
+  // AI-generated summary
+  aiSummary?: {
+    explanation: string;
+    keyFindings: string[];
+    riskAssessment: string;
+    recommendedActions: string[];
+    technicalDetails?: string;
+  };
+
   // Performance
   latency: {
     total: number;
