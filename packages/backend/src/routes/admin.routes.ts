@@ -15,8 +15,13 @@ import { AdminAnalyticsController } from '../controllers/admin/analytics.control
 import { AdminHealthController } from '../controllers/admin/health.controller.js';
 import { scanConfigAdminController } from '../controllers/scan-config-admin.controller.js';
 import { v2ConfigController } from '../controllers/admin/v2-config.controller.js';
+import { trainingDataController } from '../controllers/admin/training-data.controller.js';
+import { v2ChecksController } from '../controllers/admin/v2-checks.controller.js';
+import { v2PresetsController } from '../controllers/admin/v2-presets.controller.js';
+import multer from 'multer';
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
 // Initialize controllers
 const configController = new AdminConfigController();
@@ -150,4 +155,40 @@ router.get('/health/performance', (req, res) => healthController.getPerformanceM
 router.get('/health/ti-sources', (req, res) => healthController.getTISourceHealth(req, res));
 router.get('/health/realtime', (req, res) => healthController.getRealtimeStats(req, res));
 
+
+// ========================================
+// V2 Training Data Management Routes
+// ========================================
+router.post('/training-data/upload', upload.single('file'), (req, res) => trainingDataController.uploadData(req, res));
+router.get('/training-data', (req, res) => trainingDataController.listDatasets(req, res));
+router.delete('/training-data/:id', (req, res) => trainingDataController.deleteDataset(req, res));
+router.post('/training-data/validate', (req, res) => trainingDataController.validateData(req, res));
+router.get('/training-data/stats', (req, res) => trainingDataController.getStats(req, res));
+
+// ========================================
+// V2 Check Definitions Management Routes
+// ========================================
+router.get('/v2-checks', (req, res) => v2ChecksController.getChecks(req, res));
+router.get('/v2-checks/categories', (req, res) => v2ChecksController.getCategories(req, res));
+router.get('/v2-checks/:id', (req, res) => v2ChecksController.getCheck(req, res));
+router.post('/v2-checks', (req, res) => v2ChecksController.createCheck(req, res));
+router.put('/v2-checks/:id', (req, res) => v2ChecksController.updateCheck(req, res));
+router.delete('/v2-checks/:id', (req, res) => v2ChecksController.deleteCheck(req, res));
+router.post('/v2-checks/:id/toggle', (req, res) => v2ChecksController.toggleCheck(req, res));
+router.put('/v2-checks/bulk-update', (req, res) => v2ChecksController.bulkUpdateChecks(req, res));
+router.post('/v2-checks/:id/test', (req, res) => v2ChecksController.testCheck(req, res));
+
+// ========================================
+// V2 Presets Management Routes
+// ========================================
+router.get('/v2-presets', (req, res) => v2PresetsController.getPresets(req, res));
+router.get('/v2-presets/:id', (req, res) => v2PresetsController.getPreset(req, res));
+router.post('/v2-presets', (req, res) => v2PresetsController.createPreset(req, res));
+router.put('/v2-presets/:id', (req, res) => v2PresetsController.updatePreset(req, res));
+router.delete('/v2-presets/:id', (req, res) => v2PresetsController.deletePreset(req, res));
+router.post('/v2-presets/:id/apply', (req, res) => v2PresetsController.applyPreset(req, res));
+router.post('/v2-presets/:id/clone', (req, res) => v2PresetsController.clonePreset(req, res));
+router.post('/v2-presets/:id/set-default', (req, res) => v2PresetsController.setDefaultPreset(req, res));
+router.get('/v2-presets/export/:id', (req, res) => v2PresetsController.exportPreset(req, res));
+router.post('/v2-presets/import', (req, res) => v2PresetsController.importPreset(req, res));
 export default router;
