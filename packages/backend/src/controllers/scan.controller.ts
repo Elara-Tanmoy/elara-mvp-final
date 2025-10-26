@@ -156,32 +156,76 @@ export class ScanController {
           }
 
           // Cache miss - perform full scan
-          logger.info(`❌ Cache miss - performing full scan for ${validatedData.url}`);
+          logger.info(`❌ Cache miss - performing ${scanEngineVersion} scan for ${validatedData.url}`);
 
-          // Import enhanced scanner and process immediately
-          const { enhancedURLScanner } = await import('../services/scanners/url-scanner-enhanced.service.js');
+          let scanResults: any;
 
-          // Add timeout protection (max 60 seconds for comprehensive scan)
-          const scanPromise = enhancedURLScanner.scanURL(validatedData.url);
-          const timeoutPromise = new Promise<any>((_, reject) =>
-            setTimeout(() => reject(new Error('Scan timeout - taking longer than expected')), 60000)
-          );
+          if (scanEngineVersion === 'v2') {
+            // V2 Scanner: Enhanced ML pipeline with Vertex AI
+            logger.info(`🚀 Using V2 scanner with Vertex AI models`);
+            const { createURLScannerV2, getDefaultV2Config } = await import('../scanners/url-scanner-v2/index.js');
 
-          const scanResults = await Promise.race([scanPromise, timeoutPromise]);
+            const v2Config = getDefaultV2Config();
+            const v2Scanner = createURLScannerV2(v2Config);
 
-          // Sanitize findings to remove non-serializable values (functions, undefined, etc)
-          const sanitizedFindings = this.sanitizeForDatabase(scanResults.findings);
+            // V2 scanner has built-in timeout protection
+            scanResults = await v2Scanner.scan(validatedData.url, {});
+          } else {
+            // V1 Scanner: Original enhanced scanner
+            logger.info(`📊 Using V1 enhanced scanner`);
+            const { enhancedURLScanner } = await import('../services/scanners/url-scanner-enhanced.service.js');
 
-          // Update scan result in database
-          await prisma.scanResult.update({
-            where: { id: scanResult.id },
-            data: {
+            // Add timeout protection (max 60 seconds for comprehensive scan)
+            const scanPromise = enhancedURLScanner.scanURL(validatedData.url);
+            const timeoutPromise = new Promise<any>((_, reject) =>
+              setTimeout(() => reject(new Error('Scan timeout - taking longer than expected')), 60000)
+            );
+
+            scanResults = await Promise.race([scanPromise, timeoutPromise]);
+          }
+
+          // Prepare data for database based on scanner version
+          let updateData: any;
+
+          if (scanEngineVersion === 'v2') {
+            // V2 Result format
+            const sanitizedV2Data = this.sanitizeForDatabase({
+              stage1: scanResults.stage1,
+              stage2: scanResults.stage2,
+              evidenceSummary: scanResults.evidenceSummary,
+              decisionGraph: scanResults.decisionGraph,
+              recommendedActions: scanResults.recommendedActions,
+              aiSummary: scanResults.aiSummary,
+              probability: scanResults.probability,
+              confidenceInterval: scanResults.confidenceInterval,
+              reachability: scanResults.reachability,
+              policyOverride: scanResults.policyOverride
+            });
+
+            updateData = {
+              status: 'completed',
+              riskScore: scanResults.riskScore,
+              riskLevel: scanResults.riskLevel,
+              v2Data: sanitizedV2Data as any,
+              scanDuration: scanResults.latency?.total || 0
+            };
+          } else {
+            // V1 Result format
+            const sanitizedFindings = this.sanitizeForDatabase(scanResults.findings);
+
+            updateData = {
               status: 'completed',
               riskScore: scanResults.riskScore,
               riskLevel: scanResults.riskLevel,
               findings: sanitizedFindings as any,
               scanDuration: scanResults.scanDuration
-            }
+            };
+          }
+
+          // Update scan result in database
+          await prisma.scanResult.update({
+            where: { id: scanResult.id },
+            data: updateData
           });
 
           // Build Trust Graph in background (if Neo4j configured)
@@ -264,24 +308,40 @@ export class ScanController {
             logger.warn('[Scan Cache] Failed to cache result:', err.message);
           });
 
-          // Fetch the updated scan result from database to return consistent format
-          const completedScan = await prisma.scanResult.findUnique({
-            where: { id: scanResult.id },
-            include: {
-              riskCategories: true,
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  firstName: true,
-                  lastName: true
+          // Return appropriate response based on scanner version
+          if (scanEngineVersion === 'v2') {
+            // V2: Return the full enhanced scan result with all V2 fields
+            res.status(200).json({
+              ...scanResults,
+              scanId: scanResult.id, // Add database scan ID for reference
+              dbRecord: {
+                id: scanResult.id,
+                userId: req.user!.userId,
+                organizationId: req.user!.organizationId,
+                createdAt: scanResult.createdAt,
+                scanEngineVersion: 'v2'
+              }
+            });
+          } else {
+            // V1: Fetch the updated scan result from database to return consistent format
+            const completedScan = await prisma.scanResult.findUnique({
+              where: { id: scanResult.id },
+              include: {
+                riskCategories: true,
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true
+                  }
                 }
               }
-            }
-          });
+            });
 
-          // Return database record (same format as GET /v2/scans/:id)
-          res.status(200).json(completedScan);
+            // Return database record (same format as GET /v2/scans/:id)
+            res.status(200).json(completedScan);
+          }
         } catch (scanError) {
           logger.error(`Scan ${scanResult.id} processing error:`, scanError);
 
