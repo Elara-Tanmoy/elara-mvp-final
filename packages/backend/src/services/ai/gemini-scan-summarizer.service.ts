@@ -3,7 +3,7 @@
  * Generates human-readable explanations for V2 scan results using Gemini AI
  */
 
-import { geminiRouterService } from './geminiRouter.service.js';
+import { getGeminiRouter } from './geminiRouter.service.js';
 import { logger } from '../../config/logger.js';
 import type { EnhancedScanResult } from '../../scanners/url-scanner-v2/types';
 
@@ -29,7 +29,7 @@ export class GeminiScanSummarizerService {
 
       // Generate summary using Gemini
       const prompt = this.buildSummarizationPrompt(scanResult, context);
-      const response = await geminiRouterService.generateContent(prompt, {
+      const response = await getGeminiRouter().generate(prompt, {
         useProModel,
         temperature: 0.3, // Lower temperature for more consistent results
         maxTokens: 1000
@@ -74,7 +74,7 @@ ${scanResult.stage2 ? `Stage-2 Confidence: ${scanResult.stage2.combined.confiden
 Provide a clear, non-technical explanation suitable for end users.
 `;
 
-      const response = await geminiRouterService.generateContent(prompt, {
+      const response = await getGeminiRouter().generate(prompt, {
         useProModel: false, // Use Flash for simple explanations
         temperature: 0.4,
         maxTokens: 200
