@@ -46,7 +46,7 @@ const V2ConfigPage: React.FC = () => {
 
   const loadConfig = async () => {
     try {
-      const response = await api.get('/api/v2-config');
+      const response = await api.get('/v2-config');
       setConfig(response.data.config);
       setCurrentPreset(response.data.currentPreset || 'custom');
       setLoading(false);
@@ -58,7 +58,7 @@ const V2ConfigPage: React.FC = () => {
 
   const loadPresets = async () => {
     try {
-      const response = await api.get('/api/v2-config/presets');
+      const response = await api.get('/v2-config/presets');
       setPresets(response.data.presets);
     } catch (error: any) {
       console.error('Failed to load presets:', error);
@@ -72,7 +72,7 @@ const V2ConfigPage: React.FC = () => {
     setMessage(null);
 
     try {
-      await api.put('/api/v2-config', config);
+      await api.put('/v2-config', config);
       setMessage({ type: 'success', text: 'Configuration saved successfully!' });
       setCurrentPreset('custom');
     } catch (error: any) {
@@ -84,7 +84,7 @@ const V2ConfigPage: React.FC = () => {
 
   const handleApplyPreset = async (presetName: string) => {
     try {
-      const response = await api.post('/api/v2-config/preset', { preset: presetName });
+      const response = await api.post('/v2-config/preset', { preset: presetName });
       setConfig(response.data.config);
       setCurrentPreset(presetName);
       setMessage({ type: 'success', text: `Preset '${presetName}' applied successfully!` });

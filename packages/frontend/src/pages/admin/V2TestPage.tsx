@@ -73,7 +73,7 @@ const V2TestPage: React.FC = () => {
         payload.config = customConfig;
       }
 
-      const response = await api.post('/api/v2-config/test', payload);
+      const response = await api.post('/v2-config/test', payload);
       setResult(response.data.result);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Test failed');
@@ -98,7 +98,7 @@ const V2TestPage: React.FC = () => {
       const results = [];
 
       for (const preset of presets) {
-        const response = await api.post('/api/v2-config/test', {
+        const response = await api.post('/v2-config/test', {
           url,
           config: { preset }
         });
