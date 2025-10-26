@@ -1714,6 +1714,9 @@ model V2ScannerConfig {
   stage1Weights Json @default("{\"lexicalA\":0.25,\"lexicalB\":0.35,\"tabular\":0.40}")
   stage2Weights Json @default("{\"text\":0.60,\"screenshot\":0.40}")
 
+  // Causal Signal Weights (point adjustments for hard rules)
+  causalWeights Json @default("{\"formOriginMismatch\":0.20,\"brandInfraDivergence\":0.15,\"redirectHomoglyphDelta\":0.25,\"autoDownload\":0.30}")
+
   // Calibration Config
   calibrationMethod   String  @default("ICP") // ICP, PLATT, ISOTONIC
   calibrationAlpha    Float   @default(0.1) // 90% confidence interval

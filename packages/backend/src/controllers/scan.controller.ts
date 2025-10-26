@@ -188,25 +188,19 @@ export class ScanController {
           let updateData: any;
 
           if (scanEngineVersion === 'v2') {
-            // V2 Result format
-            const sanitizedV2Data = this.sanitizeForDatabase({
-              stage1: scanResults.stage1,
-              stage2: scanResults.stage2,
-              evidenceSummary: scanResults.evidenceSummary,
-              decisionGraph: scanResults.decisionGraph,
-              recommendedActions: scanResults.recommendedActions,
-              aiSummary: scanResults.aiSummary,
-              probability: scanResults.probability,
-              confidenceInterval: scanResults.confidenceInterval,
-              reachability: scanResults.reachability,
-              policyOverride: scanResults.policyOverride
-            });
-
+            // V2 Result format - map to individual Prisma fields
             updateData = {
               status: 'completed',
+              scanEngineVersion: 'v2',
               riskScore: scanResults.riskScore,
               riskLevel: this.mapV2RiskLevel(scanResults.riskLevel),
-              v2Data: sanitizedV2Data as any,
+              probability: scanResults.probability,
+              confidenceInterval: this.sanitizeForDatabase(scanResults.confidenceInterval) as any,
+              decisionGraph: this.sanitizeForDatabase(scanResults.decisionGraph) as any,
+              policyOverride: scanResults.policyOverride ? this.sanitizeForDatabase(scanResults.policyOverride) as any : null,
+              stage1Results: this.sanitizeForDatabase(scanResults.stage1) as any,
+              stage2Results: scanResults.stage2 ? this.sanitizeForDatabase(scanResults.stage2) as any : null,
+              aiSummary: scanResults.aiSummary ? this.sanitizeForDatabase(scanResults.aiSummary) as any : null,
               scanDuration: scanResults.latency?.total || 0
             };
           } else {
