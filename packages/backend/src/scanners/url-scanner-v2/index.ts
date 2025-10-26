@@ -58,15 +58,22 @@ export class URLScannerV2 {
       policy: 0
     };
 
+    console.log(`\n========== V2 URL SCANNER START ==========`);
+    console.log(`[V2Scanner] Scan ID: ${scanId}`);
+    console.log(`[V2Scanner] URL: ${url}`);
+    console.log(`[V2Scanner] Options:`, options);
+
     try {
       // Step 1: Canonicalize URL
       const canonicalUrl = this.canonicalizeURL(url);
+      console.log(`[V2Scanner] Canonicalized URL: ${canonicalUrl}`);
 
       // Step 2: TI Gate Check (fast lookup)
       const tiData = await this.checkTIGate(canonicalUrl);
 
       // Early exit if dual tier-1 hits
       if (tiData.tier1Hits >= 2) {
+        console.log(`[V2Scanner] EARLY EXIT: Dual tier-1 threat intelligence hits detected`);
         return this.buildBlockedResult(
           scanId,
           canonicalUrl,
@@ -76,12 +83,14 @@ export class URLScannerV2 {
       }
 
       // Step 3: Reachability Probe
+      console.log(`[V2Scanner] Step 3: Reachability Probe...`);
       const reachabilityStart = Date.now();
       const reachabilityChecker = createReachabilityChecker(
         this.config.timeouts.reachability
       );
       const reachability = await reachabilityChecker.check(canonicalUrl);
       latency.reachability = Date.now() - reachabilityStart;
+      console.log(`[V2Scanner] Reachability: ${reachability.status} (${latency.reachability}ms)`);
 
       // Early exit if sinkhole
       if (reachability.status === ReachabilityStatus.SINKHOLE) {
@@ -94,6 +103,7 @@ export class URLScannerV2 {
       }
 
       // Step 4: Evidence Collection
+      console.log(`[V2Scanner] Step 4: Evidence Collection...`);
       const evidenceStart = Date.now();
       const evidenceCollector = createEvidenceCollector(
         this.config.timeouts.evidence
@@ -108,8 +118,10 @@ export class URLScannerV2 {
         }
       );
       latency.evidence = Date.now() - evidenceStart;
+      console.log(`[V2Scanner] Evidence collected: DOM elements: ${evidence.dom.forms.length} forms, ${evidence.dom.scripts.length} scripts (${latency.evidence}ms)`);
 
       // Step 5: Feature Extraction
+      console.log(`[V2Scanner] Step 5: Feature Extraction...`);
       const featureStart = Date.now();
       const featureExtractor = createFeatureExtractor();
       const features = featureExtractor.extract(
@@ -119,8 +131,10 @@ export class URLScannerV2 {
         tiData
       );
       latency.featureExtraction = Date.now() - featureStart;
+      console.log(`[V2Scanner] Features extracted: entropy=${features.lexical.entropy.toFixed(2)}, domain_age=${features.tabular.domainAge}d, tld_risk=${features.tabular.tldRiskScore} (${latency.featureExtraction}ms)`);
 
       // Step 6: Stage-1 Models
+      console.log(`[V2Scanner] Step 6: Stage-1 Models...`);
       const stage1Start = Date.now();
       const stage1Runner = createStage1Runner(
         this.config.vertexEndpoints,
@@ -129,6 +143,12 @@ export class URLScannerV2 {
       );
       const stage1Predictions = await stage1Runner.predict(features);
       latency.stage1 = Date.now() - stage1Start;
+      console.log(`[V2Scanner] Stage-1 Results:`);
+      console.log(`  - URL Lexical A: ${(stage1Predictions.urlLexicalA.probability * 100).toFixed(1)}% (conf: ${stage1Predictions.urlLexicalA.confidence.toFixed(2)})`);
+      console.log(`  - URL Lexical B: ${(stage1Predictions.urlLexicalB.probability * 100).toFixed(1)}% (conf: ${stage1Predictions.urlLexicalB.confidence.toFixed(2)})`);
+      console.log(`  - Tabular Risk: ${(stage1Predictions.tabularRisk.probability * 100).toFixed(1)}% (conf: ${stage1Predictions.tabularRisk.confidence.toFixed(2)})`);
+      console.log(`  - Combined: ${(stage1Predictions.combined.probability * 100).toFixed(1)}% (conf: ${stage1Predictions.combined.confidence.toFixed(2)})`);
+      console.log(`  - Should Exit: ${stage1Predictions.shouldExit} (${latency.stage1}ms)`);
 
       // Step 7: Stage-2 Models (conditional)
       let stage2Predictions = null;
@@ -136,6 +156,7 @@ export class URLScannerV2 {
         shouldSkipStage2(stage1Predictions.combined.confidence, this.config.stage2Threshold, features);
 
       if (!skipStage2 && !stage1Predictions.shouldExit) {
+        console.log(`[V2Scanner] Step 7: Stage-2 Models (deep analysis)...`);
         const stage2Start = Date.now();
         const stage2Runner = createStage2Runner(
           this.config.vertexEndpoints,
@@ -145,9 +166,16 @@ export class URLScannerV2 {
           skipScreenshot: options.skipScreenshot
         });
         latency.stage2 = Date.now() - stage2Start;
+        console.log(`[V2Scanner] Stage-2 Results:`);
+        console.log(`  - Text Persuasion: ${(stage2Predictions.textPersuasion.probability * 100).toFixed(1)}%`);
+        console.log(`  - Screenshot CNN: ${(stage2Predictions.screenshotCnn.probability * 100).toFixed(1)}%`);
+        console.log(`  - Combined: ${(stage2Predictions.combined.probability * 100).toFixed(1)}% (${latency.stage2}ms)`);
+      } else {
+        console.log(`[V2Scanner] Step 7: Stage-2 SKIPPED (confidence=${stage1Predictions.combined.confidence.toFixed(2)}, threshold=${this.config.stage2Threshold})`);
       }
 
       // Step 8: Combiner + Calibration
+      console.log(`[V2Scanner] Step 8: Combiner + Calibration...`);
       const combinerStart = Date.now();
       const combiner = createCombiner(
         this.config.calibration,
@@ -160,8 +188,10 @@ export class URLScannerV2 {
         reachability.status
       );
       latency.combiner = Date.now() - combinerStart;
+      console.log(`[V2Scanner] Combined probability: ${(combinerResult.probability * 100).toFixed(1)}%, CI: [${(combinerResult.confidenceInterval.lower * 100).toFixed(1)}%, ${(combinerResult.confidenceInterval.upper * 100).toFixed(1)}%] (${latency.combiner}ms)`);
 
       // Step 9: Policy Engine
+      console.log(`[V2Scanner] Step 9: Policy Engine...`);
       const policyStart = Date.now();
       const policyEngine = createPolicyEngine();
       const policyResult = policyEngine.apply(
@@ -171,6 +201,7 @@ export class URLScannerV2 {
         tiData
       );
       latency.policy = Date.now() - policyStart;
+      console.log(`[V2Scanner] Policy decision: overridden=${policyResult.overridden}, action=${policyResult.action || 'none'} (${latency.policy}ms)`);
 
       // Step 9.5: External API checks removed - using only Vertex AI models and internal TI sources
 
@@ -178,9 +209,11 @@ export class URLScannerV2 {
       let riskLevel: RiskLevel;
       if (policyResult.overridden && policyResult.riskLevel) {
         riskLevel = policyResult.riskLevel;
+        console.log(`[V2Scanner] Final Risk Level: ${riskLevel} (POLICY OVERRIDE)`);
       } else {
         const thresholds = this.config.branchThresholds[reachability.status];
         riskLevel = probabilityToRiskLevel(combinerResult.probability, thresholds);
+        console.log(`[V2Scanner] Final Risk Level: ${riskLevel} (from probability)`);
       }
 
       // Get recommended actions
@@ -191,6 +224,7 @@ export class URLScannerV2 {
 
       // Step 10: Build preliminary result
       latency.total = Date.now() - startTime;
+      console.log(`[V2Scanner] Total scan time: ${latency.total}ms`);
 
       const preliminaryResult: EnhancedScanResult = {
         url: canonicalUrl,
@@ -235,9 +269,11 @@ export class URLScannerV2 {
       };
 
       // Step 11: Generate AI summary (optional, don't fail scan if it errors)
+      console.log(`[V2Scanner] Step 11: Generating AI summary...`);
       let aiSummary;
       try {
         aiSummary = await geminiScanSummarizerService.summarizeScan(preliminaryResult);
+        console.log(`[V2Scanner] AI summary generated successfully`);
       } catch (error: any) {
         console.warn('[V2Scanner] Failed to generate AI summary:', error.message);
         aiSummary = undefined;
@@ -248,6 +284,10 @@ export class URLScannerV2 {
         ...preliminaryResult,
         aiSummary
       };
+
+      console.log(`\n========== V2 SCAN COMPLETE ==========`);
+      console.log(`[V2Scanner] Verdict: ${result.verdict} | Risk: ${result.riskLevel} | Score: ${result.riskScore}%`);
+      console.log(`=========================================\n`);
 
       return result;
 
@@ -299,21 +339,46 @@ export class URLScannerV2 {
 
   /**
    * Check threat intelligence gate
-   * TODO: Integrate with existing TI service
+   * Uses V2 TI Integration Service for real TI lookups
    */
   private async checkTIGate(url: string): Promise<{
     totalHits: number;
     tier1Hits: number;
     tier1Sources: Array<{ source: string; lastSeen: Date }>;
   }> {
-    // Placeholder - would call actual TI service
-    const tiData = await loadTIDataForFeatures(url);
+    try {
+      // Import V2 TI Integration Service
+      const { getFullTIData } = await import('../../services/threat-intel/v2-ti-integration.service.js');
 
-    return {
-      totalHits: tiData.totalHits,
-      tier1Hits: tiData.tier1Hits,
-      tier1Sources: []
-    };
+      // Get full TI data from V2 TI service
+      const fullTIData = await getFullTIData(url);
+
+      console.log(`[V2Scanner] TI Gate Check for ${url}:`);
+      console.log(`  - Total TI Hits: ${fullTIData.totalHits}`);
+      console.log(`  - Tier-1 Hits: ${fullTIData.tier1Hits}`);
+      console.log(`  - Has Dual Tier-1: ${fullTIData.hasDualTier1}`);
+
+      if (fullTIData.tier1Sources.length > 0) {
+        console.log(`  - Tier-1 Sources:`);
+        fullTIData.tier1Sources.forEach(src => {
+          console.log(`    * ${src.source} (severity: ${src.severity}, last seen: ${src.lastSeen.toISOString()})`);
+        });
+      }
+
+      return {
+        totalHits: fullTIData.totalHits,
+        tier1Hits: fullTIData.tier1Hits,
+        tier1Sources: fullTIData.tier1Sources
+      };
+    } catch (error) {
+      console.error('[V2Scanner] TI Gate Check failed:', error);
+      // Return empty TI data on error
+      return {
+        totalHits: 0,
+        tier1Hits: 0,
+        tier1Sources: []
+      };
+    }
   }
 
   /**

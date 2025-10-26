@@ -304,7 +304,8 @@ export function getV2TIService(): V2TIIntegrationService {
 }
 
 /**
- * Helper: Load TI data for V2 feature extraction (replaces placeholder)
+ * Helper function for V2 feature extraction
+ * Simplified return format for use in feature extraction
  */
 export async function loadTIDataForV2Features(url: string): Promise<{
   totalHits: number;
@@ -317,4 +318,12 @@ export async function loadTIDataForV2Features(url: string): Promise<{
     totalHits: tiData.totalHits,
     tier1Hits: tiData.tier1Hits
   };
+}
+
+/**
+ * Helper function to get full TI data (for V2 scanner policy engine)
+ */
+export async function getFullTIData(url: string): Promise<V2TIData> {
+  const service = getV2TIService();
+  return await service.getTIDataForURL(url);
 }

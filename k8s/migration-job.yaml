@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migration
+  namespace: elara-backend-dev
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migrate
+        image: gcr.io/elara-mvp-13082025-u1/backend-api:dev-c46db0f
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            cd /app/packages/backend
+            npx prisma db push --accept-data-loss --skip-generate
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: elara-secrets
+              key: database-url

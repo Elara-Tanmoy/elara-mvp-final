@@ -21,27 +21,40 @@ export class GeminiScanSummarizerService {
    */
   async summarizeScan(scanResult: EnhancedScanResult): Promise<ScanSummary> {
     try {
+      console.log(`[GeminiSummarizer] Starting summary generation...`);
+
       // Build context for AI
       const context = this.buildScanContext(scanResult);
 
       // Choose appropriate prompt complexity
       const useProModel = this.shouldUseProModel(scanResult);
+      console.log(`[GeminiSummarizer] Using ${useProModel ? 'Pro' : 'Flash'} model`);
 
       // Generate summary using Gemini
       const prompt = this.buildSummarizationPrompt(scanResult, context);
-      const response = await getGeminiRouter().generate(prompt, {
-        useProModel,
-        temperature: 0.3, // Lower temperature for more consistent results
-        maxTokens: 1000
-      });
+
+      const geminiRequest: any = {
+        prompt,
+        complexity: useProModel ? 'complex' : 'simple',
+        temperature: 0.3,
+        maxTokens: 1000,
+        contextLength: context.length
+      };
+
+      const response = await getGeminiRouter().generate(geminiRequest);
+      console.log(`[GeminiSummarizer] Generated ${response.text.length} chars from ${response.model} model (cached: ${response.cached})`);
 
       // Parse and structure the response
-      const summary = this.parseAIResponse(response, scanResult);
+      const summary = this.parseAIResponse(response.text, scanResult);
 
       return summary;
 
     } catch (error: any) {
-      logger.error('[GeminiSummarizer] Failed to generate summary:', error.message);
+      console.error('[GeminiSummarizer] Failed to generate summary:', error);
+      logger.error('[GeminiSummarizer] Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
 
       // Return fallback summary
       return this.generateFallbackSummary(scanResult);
@@ -222,25 +235,94 @@ Be clear, concise, and non-technical where possible. Focus on actionable insight
    */
   private parseAIResponse(response: string, scanResult: EnhancedScanResult): ScanSummary {
     try {
+      console.log(`[GeminiSummarizer] Parsing AI response (${response.length} chars)...`);
+
       // Try to parse JSON response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          explanation: parsed.explanation || '',
-          keyFindings: parsed.keyFindings || [],
-          riskAssessment: parsed.riskAssessment || '',
-          recommendedActions: parsed.recommendedActions || scanResult.recommendedActions,
-          technicalDetails: parsed.technicalDetails
-        };
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          console.log(`[GeminiSummarizer] Successfully parsed JSON response`);
+
+          return {
+            explanation: parsed.explanation || parsed.executiveSummary || '',
+            keyFindings: Array.isArray(parsed.keyFindings) ? parsed.keyFindings : [],
+            riskAssessment: parsed.riskAssessment || '',
+            recommendedActions: Array.isArray(parsed.recommendedActions)
+              ? parsed.recommendedActions
+              : scanResult.recommendedActions,
+            technicalDetails: parsed.technicalDetails
+          };
+        } catch (jsonError) {
+          console.warn(`[GeminiSummarizer] JSON parsing failed, attempting text extraction:`, jsonError);
+          // Continue to fallback parsing
+        }
       }
 
-      // Fallback: parse as plain text
+      // Fallback: Try to extract structured text sections
+      console.log(`[GeminiSummarizer] No valid JSON, attempting structured text extraction`);
+      const textSummary = this.extractStructuredText(response, scanResult);
+      if (textSummary) {
+        return textSummary;
+      }
+
+      // Final fallback
+      console.log(`[GeminiSummarizer] Using fallback summary`);
       return this.generateFallbackSummary(scanResult);
 
     } catch (error) {
+      console.error('[GeminiSummarizer] Failed to parse AI response:', error);
       logger.warn('[GeminiSummarizer] Failed to parse AI response, using fallback');
       return this.generateFallbackSummary(scanResult);
+    }
+  }
+
+  /**
+   * Extract structured text from non-JSON response
+   */
+  private extractStructuredText(response: string, scanResult: EnhancedScanResult): ScanSummary | null {
+    try {
+      // Look for section markers
+      const sections = response.split('\n\n');
+      let explanation = '';
+      let keyFindings: string[] = [];
+      let riskAssessment = '';
+      let technicalDetails = '';
+
+      for (const section of sections) {
+        const lowerSection = section.toLowerCase();
+
+        if (lowerSection.includes('executive summary') || lowerSection.includes('explanation')) {
+          explanation = section.split('\n').slice(1).join('\n').trim();
+        } else if (lowerSection.includes('key findings')) {
+          const findings = section.split('\n').slice(1)
+            .filter(line => line.trim().startsWith('-') || line.trim().startsWith('*'))
+            .map(line => line.replace(/^[\s\-\*]+/, '').trim());
+          keyFindings = findings;
+        } else if (lowerSection.includes('risk assessment')) {
+          riskAssessment = section.split('\n').slice(1).join('\n').trim();
+        } else if (lowerSection.includes('technical details')) {
+          technicalDetails = section.split('\n').slice(1).join('\n').trim();
+        }
+      }
+
+      if (explanation || keyFindings.length > 0 || riskAssessment) {
+        return {
+          explanation: explanation || riskAssessment.slice(0, 200),
+          keyFindings: keyFindings.length > 0 ? keyFindings : [
+            `Risk Level: ${scanResult.riskLevel}`,
+            `Confidence: ${(scanResult.confidenceInterval.width < 0.2 ? 'High' : 'Medium')}`
+          ],
+          riskAssessment: riskAssessment || explanation,
+          recommendedActions: scanResult.recommendedActions,
+          technicalDetails
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('[GeminiSummarizer] Text extraction failed:', error);
+      return null;
     }
   }
 

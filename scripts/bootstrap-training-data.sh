@@ -52,9 +52,11 @@ if [ -f phishtank.csv ]; then
   echo "Transforming PhishTank data..."
   cat phishtank.csv | tail -n +2 | awk -F',' '{print $2",phishing,1.0,PhishTank," $6}' > phishtank_transformed.csv
 
-  # Load to BigQuery
+  # Load to BigQuery (allowing more bad records due to CSV quote issues)
   echo "Loading to BigQuery..."
   bq load --autodetect --skip_leading_rows=0 --source_format=CSV \
+    --max_bad_records=1000 \
+    --allow_quoted_newlines \
     ${DATASET_NAME}.phishing_urls \
     phishtank_transformed.csv \
     url:STRING,label:STRING,confidence:FLOAT,source:STRING,timestamp:TIMESTAMP
@@ -82,6 +84,7 @@ if [ -f urlhaus.csv ]; then
   # Load to BigQuery
   echo "Loading to BigQuery..."
   bq load --autodetect --skip_leading_rows=0 --source_format=CSV \
+    --max_bad_records=100 \
     ${DATASET_NAME}.phishing_urls \
     urlhaus_transformed.csv \
     url:STRING,label:STRING,confidence:FLOAT,source:STRING,timestamp:TIMESTAMP
@@ -111,9 +114,10 @@ if [ -f tranco.zip ]; then
   # Load to BigQuery
   echo "Loading to BigQuery..."
   bq load --autodetect --skip_leading_rows=0 --source_format=CSV \
+    --max_bad_records=100 \
     ${DATASET_NAME}.benign_urls \
     tranco_transformed.csv \
-    url:STRING,label:STRING,confidence:FLOAT,source:STRING,timestamp:STRING
+    url:STRING,label:STRING,confidence:FLOAT,source:STRING,timestamp:TIMESTAMP
 
   TRANCO_COUNT=$(wc -l < tranco_transformed.csv)
   echo -e "${GREEN}✓ Loaded ${TRANCO_COUNT} Tranco benign URLs${NC}"
