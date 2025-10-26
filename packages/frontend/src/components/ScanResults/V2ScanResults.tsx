@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import {
   Shield, AlertTriangle, XCircle, CheckCircle, Info,
-  Activity, Target, Brain, FileText, Download, Share2,
+  Activity, Target, Brain, Download, Share2,
   Clock, Server, Lock, Globe, Eye, Code, AlertCircle,
   ChevronDown, ChevronUp, Zap, Gauge
 } from 'lucide-react';
@@ -43,15 +43,6 @@ const V2ScanResults: React.FC<V2ScanResultsProps> = ({ scan }) => {
     return colors[level] || 'gray';
   };
 
-  const getRiskGradient = (level: string) => {
-    const gradients: Record<string, string> = {
-      A: 'from-green-500 to-green-600',
-      B: 'from-blue-500 to-blue-600',
-      C: 'from-yellow-500 to-yellow-600',
-      D: 'from-orange-500 to-orange-600',
-      E: 'from-red-500 to-red-600',
-      F: 'from-red-600 to-red-700'
-    };
     return gradients[level] || 'from-gray-500 to-gray-600';
   };
 
