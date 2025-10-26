@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Settings, Save, RotateCcw, Zap, Gauge, Shield, AlertCircle,
-  CheckCircle, Sliders, Target, Activity, Info
+  CheckCircle, Info
 } from 'lucide-react';
 import api from '../../lib/api';
 

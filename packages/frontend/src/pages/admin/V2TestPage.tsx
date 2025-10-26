@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import {
   TestTube, Play, RotateCcw, Loader2, Search, ArrowRight,
-  CheckCircle, XCircle, AlertCircle, Info, Target, Gauge
+  AlertCircle, Info
 } from 'lucide-react';
 import api from '../../lib/api';
 import V2ScanResults from '../../components/ScanResults/V2ScanResults';

@@ -43,9 +43,6 @@ const V2ScanResults: React.FC<V2ScanResultsProps> = ({ scan }) => {
     return colors[level] || 'gray';
   };
 
-    return gradients[level] || 'from-gray-500 to-gray-600';
-  };
-
   const getVerdictInfo = (verdict: string) => {
     const info: Record<string, { icon: any; text: string; color: string }> = {
       safe: { icon: CheckCircle, text: 'SAFE', color: 'green' },
