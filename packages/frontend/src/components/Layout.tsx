@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { Shield, Home, Link as LinkIcon, Mail, FileText, History, LogOut, User, Settings } from 'lucide-react';
+import { Shield, Home, Link as LinkIcon, Mail, FileText, History, LogOut, User, Settings, Zap, Activity, BarChart3 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import ChatbotWidget from './ChatbotWidget';
 
@@ -47,13 +47,21 @@ const Layout: React.FC = () => {
                 </Link>
                 {user?.role === 'admin' && (
                   <>
+                    <Link to="/admin/v2-scanner" className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-primary-600 rounded-md">
+                      <Zap className="w-4 h-4" />
+                      V2 Config
+                    </Link>
+                    <Link to="/admin/scan-analytics" className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-primary-600 rounded-md">
+                      <BarChart3 className="w-4 h-4" />
+                      Analytics
+                    </Link>
+                    <Link to="/admin/scan-engine" className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-primary-600 rounded-md">
+                      <Activity className="w-4 h-4" />
+                      Scan Engine
+                    </Link>
                     <Link to="/admin" className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-primary-600 rounded-md">
                       <Shield className="w-4 h-4" />
                       Admin Panel
-                    </Link>
-                    <Link to="/chatbot/admin" className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-primary-600 rounded-md">
-                      <Settings className="w-4 h-4" />
-                      Chatbot Admin
                     </Link>
                   </>
                 )}
