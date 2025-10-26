@@ -205,7 +205,7 @@ export class ScanController {
             updateData = {
               status: 'completed',
               riskScore: scanResults.riskScore,
-              riskLevel: scanResults.riskLevel,
+              riskLevel: this.mapV2RiskLevel(scanResults.riskLevel),
               v2Data: sanitizedV2Data as any,
               scanDuration: scanResults.latency?.total || 0
             };
@@ -821,6 +821,21 @@ export class ScanController {
     if (level === 'medium' || level === 'moderate') return 'medium';
     if (level === 'low') return 'low';
     return 'safe';
+  }
+
+  /**
+   * Map V2 scanner's A-F risk bands to Prisma's risk level enum
+   */
+  private mapV2RiskLevel(v2Level: string): 'safe' | 'low' | 'medium' | 'high' | 'critical' {
+    switch (v2Level) {
+      case 'A': return 'safe';      // Safe (0-15%)
+      case 'B': return 'low';       // Low (15-30%)
+      case 'C': return 'medium';    // Medium (30-50%)
+      case 'D': return 'high';      // High (50-75%)
+      case 'E': return 'critical';  // Critical (75-90%)
+      case 'F': return 'critical';  // Severe (90-100%)
+      default: return 'medium';      // Fallback
+    }
   }
 
   /**
