@@ -68,8 +68,8 @@ export class ScanController {
       const validatedData = urlScanSchema.parse(req.body);
       const contentHash = generateContentHash(validatedData.url);
 
-      // V2 Scanner: Extract version from query parameter (?version=v2)
-      const scanEngineVersion = req.query.version === 'v2' ? 'v2' : 'v1';
+      // V2 Scanner is default - use V1 only if explicitly requested with ?version=v1
+      const scanEngineVersion = req.query.version === 'v1' ? 'v1' : 'v2';
       logger.info(`[Scan Controller] Initiating ${scanEngineVersion} scan for ${validatedData.url}`);
 
       // Create scan result
