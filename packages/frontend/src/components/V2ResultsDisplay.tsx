@@ -4,8 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Shield, AlertTriangle, CheckCircle, XCircle, Brain, Eye, Zap, TrendingUp, Target, Server, Clock, ChevronDown, ChevronUp } from 'lucide-react';
-import { Card, CardContent, Badge } from './ui';
+import { AlertTriangle, CheckCircle, XCircle, Brain, Eye, Zap, TrendingUp, Target, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface V2ScanResult {
   // Core result
