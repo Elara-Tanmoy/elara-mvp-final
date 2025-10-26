@@ -48,11 +48,11 @@ export class V2ScannerConfigService {
     const config: V2Config = {
       enabled: dbConfig.isActive,
       vertexEndpoints: {
-        urlLexicalB: dbConfig.urlLexicalBEndpoint || 'placeholder',
-        tabularRisk: dbConfig.tabularRiskEndpoint || 'placeholder',
-        textPersuasion: dbConfig.textPersuasionEndpoint || 'placeholder',
-        screenshotCnn: dbConfig.screenshotCnnEndpoint || 'placeholder',
-        combiner: dbConfig.combinerEndpoint || 'placeholder'
+        urlLexicalB: dbConfig.urlLexicalBEndpoint || '',
+        tabularRisk: dbConfig.tabularRiskEndpoint || '',
+        textPersuasion: dbConfig.textPersuasionEndpoint || '',
+        screenshotCnn: dbConfig.screenshotCnnEndpoint || '',
+        combiner: dbConfig.combinerEndpoint || ''
       },
       featureStore: {
         type: dbConfig.featureStoreType as 'firestore' | 'vertex',

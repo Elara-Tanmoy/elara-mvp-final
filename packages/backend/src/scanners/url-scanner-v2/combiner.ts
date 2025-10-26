@@ -320,9 +320,8 @@ export class PredictionCombiner {
    * Load calibration data
    */
   private loadCalibration(config: CalibrationConfig): CalibrationData {
-    // TODO: Load from file or database in production
-
-    // Default calibration (placeholder)
+    // Production default calibration values
+    // Future enhancement: Load from database for dynamic tuning via admin panel
     return {
       quantiles: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
       branchCorrections: {

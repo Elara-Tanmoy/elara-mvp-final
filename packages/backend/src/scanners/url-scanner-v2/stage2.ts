@@ -96,7 +96,8 @@ export class Stage2ModelRunner {
   }> {
     try {
       // Check if endpoint is configured
-      if (!this.endpoints.textPersuasion || this.endpoints.textPersuasion === 'placeholder') {
+      if (!this.endpoints.textPersuasion || this.endpoints.textPersuasion.trim() === '') {
+        console.log('[Stage2] Text Persuasion: Vertex AI not configured, using fallback heuristic');
         return this.localTextFallback(text);
       }
 
@@ -144,7 +145,8 @@ export class Stage2ModelRunner {
   }> {
     try {
       // Check if endpoint is configured
-      if (!this.endpoints.screenshotCnn || this.endpoints.screenshotCnn === 'placeholder') {
+      if (!this.endpoints.screenshotCnn || this.endpoints.screenshotCnn.trim() === '') {
+        console.log('[Stage2] Screenshot CNN: Vertex AI not configured, using fallback');
         return this.localScreenshotFallback();
       }
 

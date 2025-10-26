@@ -548,11 +548,11 @@ export function getDefaultV2Config(): V2Config {
   return {
     enabled: true,
     vertexEndpoints: {
-      urlLexicalB: process.env.VERTEX_URL_BERT_ENDPOINT || 'placeholder',
-      tabularRisk: process.env.VERTEX_TABULAR_ENDPOINT || 'placeholder',
-      textPersuasion: process.env.VERTEX_TEXT_ENDPOINT || 'placeholder',
-      screenshotCnn: process.env.VERTEX_SCREENSHOT_ENDPOINT || 'placeholder',
-      combiner: process.env.VERTEX_COMBINER_ENDPOINT || 'placeholder'
+      urlLexicalB: process.env.VERTEX_URL_BERT_ENDPOINT || '',
+      tabularRisk: process.env.VERTEX_TABULAR_ENDPOINT || '',
+      textPersuasion: process.env.VERTEX_TEXT_ENDPOINT || '',
+      screenshotCnn: process.env.VERTEX_SCREENSHOT_ENDPOINT || '',
+      combiner: process.env.VERTEX_COMBINER_ENDPOINT || ''
     },
     featureStore: {
       type: 'firestore',

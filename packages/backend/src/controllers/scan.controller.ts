@@ -130,7 +130,7 @@ export class ScanController {
               data: {
                 status: 'completed',
                 riskScore: cachedResult.riskScore,
-                riskLevel: cachedResult.riskLevel,
+                riskLevel: this.mapV2RiskLevel(cachedResult.riskLevel),
                 findings: this.sanitizeForDatabase(cachedResult.scanResult.findings) as any,
                 scanDuration: cachedResult.scanResult.scanDuration
               }

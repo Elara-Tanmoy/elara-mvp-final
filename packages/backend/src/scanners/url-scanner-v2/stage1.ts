@@ -127,8 +127,9 @@ export class Stage1ModelRunner {
   }> {
     try {
       // Check if Vertex AI endpoint is configured
-      if (!this.endpoints.urlLexicalB || this.endpoints.urlLexicalB === 'placeholder') {
+      if (!this.endpoints.urlLexicalB || this.endpoints.urlLexicalB.trim() === '') {
         // Fallback to local heuristic
+        console.log('[Stage1] URL Lexical B: Vertex AI not configured, using fallback heuristic');
         return this.localURLBERTFallback(urlTokens);
       }
 
@@ -170,8 +171,9 @@ export class Stage1ModelRunner {
   }> {
     try {
       // Check if Vertex AI endpoint is configured
-      if (!this.endpoints.tabularRisk || this.endpoints.tabularRisk === 'placeholder') {
+      if (!this.endpoints.tabularRisk || this.endpoints.tabularRisk.trim() === '') {
         // Fallback to rule-based scoring
+        console.log('[Stage1] Tabular Risk: Vertex AI not configured, using fallback heuristic');
         return this.localTabularFallback(tabular);
       }
 
@@ -517,7 +519,7 @@ export function hasVertexAIConfigured(endpoints: VertexAIEndpoints): boolean {
   return !!(
     endpoints.urlLexicalB &&
     endpoints.tabularRisk &&
-    endpoints.urlLexicalB !== 'placeholder' &&
-    endpoints.tabularRisk !== 'placeholder'
+    endpoints.urlLexicalB.trim() !== '' &&
+    endpoints.tabularRisk.trim() !== ''
   );
 }

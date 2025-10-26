@@ -55,8 +55,9 @@ if [ -f phishtank.csv ]; then
   # Load to BigQuery (allowing more bad records due to CSV quote issues)
   echo "Loading to BigQuery..."
   bq load --autodetect --skip_leading_rows=0 --source_format=CSV \
-    --max_bad_records=1000 \
+    --max_bad_records=5000 \
     --allow_quoted_newlines \
+    --allow_jagged_rows \
     ${DATASET_NAME}.phishing_urls \
     phishtank_transformed.csv \
     url:STRING,label:STRING,confidence:FLOAT,source:STRING,timestamp:TIMESTAMP

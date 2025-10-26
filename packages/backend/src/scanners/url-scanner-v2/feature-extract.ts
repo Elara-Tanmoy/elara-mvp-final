@@ -192,8 +192,9 @@ export class FeatureExtractor {
     const sinkhole = reachability.details.sinkholeIndicators ?
       reachability.details.sinkholeIndicators.length > 0 : false;
 
-    // Dual tier-1 TI hits (would need actual TI data)
-    const dualTier1Hits = false; // Placeholder
+    // Dual tier-1 TI hits (determined by TI data passed to scanner)
+    // This will be checked by the policy engine using the tiData parameter
+    const dualTier1Hits = tiData ? tiData.tier1Hits >= 2 : false;
 
     return {
       formOriginMismatch,
