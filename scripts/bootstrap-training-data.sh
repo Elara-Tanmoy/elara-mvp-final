@@ -44,7 +44,7 @@ cd ${TEMP_DIR}
 echo -e "\n${GREEN}[1/4] Downloading PhishTank phishing URLs...${NC}"
 
 # PhishTank requires API key, using online-valid CSV
-wget -O phishtank.csv "http://data.phishtank.com/data/online-valid.csv" || \
+curl -L -o phishtank.csv "http://data.phishtank.com/data/online-valid.csv" || \
   echo -e "${YELLOW}Warning: PhishTank download failed (may require API key)${NC}"
 
 if [ -f phishtank.csv ]; then
@@ -71,7 +71,7 @@ fi
 
 echo -e "\n${GREEN}[2/4] Downloading URLhaus malicious URLs...${NC}"
 
-wget -O urlhaus.csv "https://urlhaus.abuse.ch/downloads/csv_recent/" || \
+curl -L -o urlhaus.csv "https://urlhaus.abuse.ch/downloads/csv_recent/" || \
   echo -e "${YELLOW}Warning: URLhaus download failed${NC}"
 
 if [ -f urlhaus.csv ]; then
@@ -98,7 +98,7 @@ fi
 
 echo -e "\n${GREEN}[3/4] Downloading Tranco Top 1M (benign URLs)...${NC}"
 
-wget -O tranco.zip "https://tranco-list.eu/top-1m.csv.zip" || \
+curl -L -o tranco.zip "https://tranco-list.eu/top-1m.csv.zip" || \
   echo -e "${YELLOW}Warning: Tranco download failed${NC}"
 
 if [ -f tranco.zip ]; then
