@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Loader2, HelpCircle, RefreshCw, Globe, Server, Brain, Eye, Search } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '../components/ui';
+import { V2ResultsDisplay } from '../components/V2ResultsDisplay';
 import api from '../lib/api';
 
 interface ScanResult {
@@ -296,6 +297,12 @@ const URLScannerAccessible: React.FC = () => {
         {/* Results - ESS Design with Severity */}
         {result && (
           <div className="space-y-6">
+            {/* V2 Results Display - Alienware Dark Theme */}
+            {(result as any).version === 'v2' ? (
+              <V2ResultsDisplay result={result as any} />
+            ) : (
+              /* V1 Results Display */
+              <>
             {/* Main Result Card */}
             <Card notched elevated className="spectral-thread">
               <CardContent className="p-6 sm:p-8 md:p-10">
@@ -589,6 +596,8 @@ const URLScannerAccessible: React.FC = () => {
                   ))}
                 </div>
               </details>
+            )}
+              </>
             )}
 
             {/* Action Buttons */}
