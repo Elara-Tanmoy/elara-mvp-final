@@ -26,6 +26,7 @@ import adminScanEngineRoutes from './admin.routes.js';
 import messageScanAdminRoutes from './message-scan-admin.routes.js';
 import globalSettingsRoutes from './admin/globalSettings.routes.js';
 import v2AIRoutes from './v2-ai.routes.js';
+import v2ConfigRoutes from './v2-config.routes.js';
 import { whatsappWebhookController } from '../controllers/whatsapp-webhook.controller.js';
 import { whatsappAdminController } from '../controllers/whatsapp-admin.controller.js';
 
@@ -249,6 +250,13 @@ router.use('/v2/analytics/scans', scanAnalyticsRoutes);
 
 // Threat Intelligence routes (v2) - Admin only (for threat feed management)
 router.use('/v2/threat-intel', threatIntelRoutes);
+
+// V2 Scanner Test & Config routes (v2) - Admin only (for V2 test pages)
+logger.info('[Routes] Registering V2 Config routes at /v2-config...');
+router.use('/v2-config', v2ConfigRoutes);
+logger.info('[Routes] V2 Config routes registered');
+
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ADMIN ROUTES - Admin Panel (Scan Engine + V2 Scanner Config)
