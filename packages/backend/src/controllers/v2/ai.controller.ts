@@ -4,7 +4,7 @@
  */
 
 import { Request, Response } from 'express';
-import { geminiRouterService } from '../../services/ai/geminiRouter.service.js';
+import { getGeminiRouter } from '../../services/ai/geminiRouter.service.js';
 import { geminiScanSummarizerService } from '../../services/ai/gemini-scan-summarizer.service.js';
 import { createURLScannerV2, getDefaultV2Config } from '../../scanners/url-scanner-v2/index.js';
 import { logger } from '../../config/logger.js';
@@ -57,7 +57,7 @@ export class V2AIController {
       const useProModel = validated.content.length > 5000 || validated.type === 'html';
 
       // Generate analysis
-      const analysis = await geminiRouterService.generateContent(prompt, {
+      const analysis = await getGeminiRouter().generate(prompt, {
         useProModel,
         temperature: 0.3,
         maxTokens: 2000
@@ -118,7 +118,7 @@ export class V2AIController {
       );
 
       // Generate response using Flash (faster for chat)
-      const response = await geminiRouterService.generateContent(prompt, {
+      const response = await getGeminiRouter().generate(prompt, {
         useProModel: false,
         temperature: 0.7, // Higher temperature for more natural conversation
         maxTokens: 500
