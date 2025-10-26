@@ -10,8 +10,8 @@ const Home: React.FC = () => {
   const { user, organization } = useAuth();
   const navigate = useNavigate();
   const [usageStats, setUsageStats] = useState<any>(null);
-  const [v2Stats, setV2Stats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [, setV2Stats] = useState<any>(null);
+  const [, setLoading] = useState(true);
 
   const tier = organization?.tier || 'free';
   const isPremium = tier === 'premium' || tier === 'enterprise';
