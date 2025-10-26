@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { Shield, Home, Link as LinkIcon, Mail, FileText, History, LogOut, User, Settings, Zap, Activity, BarChart3 } from 'lucide-react';
+import { Shield, Home, Link as LinkIcon, Mail, FileText, History, LogOut, User, Zap, Activity, BarChart3 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import ChatbotWidget from './ChatbotWidget';
 
