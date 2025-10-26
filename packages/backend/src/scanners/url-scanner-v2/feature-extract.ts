@@ -58,7 +58,7 @@ export class FeatureExtractor {
     // Extract features in parallel conceptually (all are sync operations)
     const lexical = this.extractLexicalFeatures(url, parsedUrl);
     const tabular = this.extractTabularFeatures(evidence, reachability, tiData);
-    const causal = this.extractCausalSignals(url, evidence, parsedUrl, reachability);
+    const causal = this.extractCausalSignals(url, evidence, parsedUrl, reachability, tiData);
     const text = this.extractTextFeatures(evidence);
     const screenshot = evidence.screenshot?.url ? {
       imageUrl: evidence.screenshot.url,
@@ -171,7 +171,7 @@ export class FeatureExtractor {
   /**
    * Extract causal signals (hard rules)
    */
-  private extractCausalSignals(url: string, evidence: EvidenceData, parsedUrl: URL, reachability: ReachabilityData) {
+  private extractCausalSignals(url: string, evidence: EvidenceData, parsedUrl: URL, reachability: ReachabilityData, tiData?: { totalHits: number; tier1Hits: number }) {
     // Form origin mismatch
     const formOriginMismatch = evidence.dom.forms.some(f => f.submitsToExternal);
 
