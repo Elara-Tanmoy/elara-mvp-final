@@ -8,7 +8,6 @@ import api from '../lib/api';
 const ModelTrainingDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'training' | 'models' | 'features'>('overview');
   const [, setTrainingData] = useState<any>(null);
-  const [, setModels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
