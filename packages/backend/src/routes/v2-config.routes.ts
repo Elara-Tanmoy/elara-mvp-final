@@ -9,9 +9,9 @@ import {
   getV2Presets,
   applyV2Preset,
   testV2Config
-} from '../controllers/v2-config.controller';
-import { authenticate } from '../middleware/auth';
-import { requireAdmin } from '../middleware/admin';
+} from '../controllers/v2-config.controller.js';
+import { authenticate } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/admin.js';
 
 const router = Router();
 
