@@ -87,6 +87,7 @@ const URLScannerAccessible: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [scannerVersion, setScannerVersion] = useState<'v1' | 'v2'>('v2'); // Default to V2
 
   const handleScan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,8 +112,10 @@ const URLScannerAccessible: React.FC = () => {
     setResult(null);
 
     try {
-      const response = await api.post('/v2/scan/url', { url: urlToScan });
-      console.log('Scan response:', response.data);
+      // Add version query parameter for V2 scanner
+      const endpoint = scannerVersion === 'v2' ? '/v2/scan/url?version=v2' : '/v2/scan/url';
+      const response = await api.post(endpoint, { url: urlToScan });
+      console.log(`Scan response (${scannerVersion}):`, response.data);
       setResult(response.data);
     } catch (err: any) {
       console.error('Scan error:', err);
@@ -200,6 +203,48 @@ const URLScannerAccessible: React.FC = () => {
                   disabled={loading}
                   autoFocus
                 />
+              </div>
+
+              {/* Scanner Version Toggle */}
+              <div className="flex items-center justify-between p-4 bg-surface-subtle border-2 border-border-default rounded-lg">
+                <div className="flex-1">
+                  <label className="block text-base sm:text-lg font-semibold text-text-primary mb-1">
+                    Scanner Version
+                  </label>
+                  <p className="text-sm text-text-secondary">
+                    {scannerVersion === 'v2' ? (
+                      <>V2: Enhanced ML pipeline with Vertex AI models (recommended)</>
+                    ) : (
+                      <>V1: Original multi-LLM analysis</>
+                    )}
+                  </p>
+                </div>
+                <div className="flex gap-2 ml-4">
+                  <button
+                    type="button"
+                    onClick={() => setScannerVersion('v1')}
+                    disabled={loading}
+                    className={`px-4 py-2 rounded-md font-medium transition-all ${
+                      scannerVersion === 'v1'
+                        ? 'bg-primary-600 text-white shadow-md'
+                        : 'bg-surface-base text-text-secondary border-2 border-border-default hover:border-primary-300'
+                    }`}
+                  >
+                    V1
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScannerVersion('v2')}
+                    disabled={loading}
+                    className={`px-4 py-2 rounded-md font-medium transition-all ${
+                      scannerVersion === 'v2'
+                        ? 'bg-primary-600 text-white shadow-md'
+                        : 'bg-surface-base text-text-secondary border-2 border-border-default hover:border-primary-300'
+                    }`}
+                  >
+                    V2
+                  </button>
+                </div>
               </div>
 
               <Button
