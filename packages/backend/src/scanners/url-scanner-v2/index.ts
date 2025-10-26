@@ -24,12 +24,11 @@ import { createCombiner, getDefaultBranchThresholds } from './combiner';
 import { createPolicyEngine, probabilityToRiskLevel } from './policy';
 // External API services removed - using only Vertex AI and internal checks
 import { geminiScanSummarizerService } from '../../services/ai/gemini-scan-summarizer.service.js';
+import { ReachabilityStatus, RiskLevel } from './types';
 import type {
   EnhancedScanResult,
   V2ScanOptions,
-  V2Config,
-  ReachabilityStatus,
-  RiskLevel
+  V2Config
 } from './types';
 
 /**
