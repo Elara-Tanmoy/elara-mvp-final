@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Link as LinkIcon, Mail, FileText, UserCheck, Search, GraduationCap, Heart, Sparkles, Crown, Zap, AlertCircle, Shield, Globe, Lock, ExternalLink, TrendingUp, Activity } from 'lucide-react';
+import { Link as LinkIcon, Mail, FileText, UserCheck, Search, GraduationCap, Heart, Sparkles, Crown, Zap, AlertCircle, Shield, Globe, Lock, ExternalLink } from 'lucide-react';
 import ChatbotWidget from '../components/ChatbotWidget';
 import EmbeddedChatbot from '../components/EmbeddedChatbot';
 import { useAuth } from '../contexts/AuthContext';

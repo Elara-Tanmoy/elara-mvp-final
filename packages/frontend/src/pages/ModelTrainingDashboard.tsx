@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Brain, Database, Zap, TrendingUp, Upload, Play, CheckCircle,
+  Brain, Database, Upload, Play,
   AlertCircle, Clock, Target, Gauge, Box, Cloud, Activity
 } from 'lucide-react';
 import api from '../lib/api';
 
 const ModelTrainingDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'training' | 'models' | 'features'>('overview');
-  const [trainingData, setTrainingData] = useState<any>(null);
-  const [models, setModels] = useState<any[]>([]);
+  const [, setTrainingData] = useState<any>(null);
+  const [, setModels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
