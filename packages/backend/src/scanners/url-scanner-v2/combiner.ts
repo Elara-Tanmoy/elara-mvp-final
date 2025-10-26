@@ -6,12 +6,12 @@
  * Applies branch-specific calibration thresholds.
  */
 
+import { ReachabilityStatus } from './types';
 import type {
   Stage1Predictions,
   Stage2Predictions,
   ExtractedFeatures,
   CombinerResult,
-  ReachabilityStatus,
   BranchThresholds,
   DecisionNode,
   CalibrationConfig
