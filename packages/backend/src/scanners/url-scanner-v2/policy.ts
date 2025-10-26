@@ -10,11 +10,10 @@
  * 3. Form origin mismatch + brand infra divergence + domain age < 30 days → HIGH/CRITICAL
  */
 
+import { ReachabilityStatus, RiskLevel } from './types';
 import type {
   PolicyResult,
-  RiskLevel,
   ExtractedFeatures,
-  ReachabilityStatus,
   CombinerResult
 } from './types';
 
