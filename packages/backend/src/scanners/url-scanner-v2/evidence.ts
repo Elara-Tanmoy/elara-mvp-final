@@ -318,6 +318,8 @@ export class EvidenceCollector {
       const spfValid = txtRecords.some(r => r.startsWith('v=spf1'));
       const dmarcValid = txtRecords.some(r => r.startsWith('v=DMARC1'));
 
+      console.log(`[Evidence] DNS collected for ${hostname}: A=${aRecords.length}, MX=${mxRecords.length}, NS=${nsRecords.length}, TXT=${txtRecords.length}`);
+
       return {
         aRecords,
         mxRecords,
@@ -328,6 +330,7 @@ export class EvidenceCollector {
         dmarcValid
       };
     } catch (error) {
+      console.warn(`[Evidence] DNS lookup failed for ${hostname}:`, (error as Error).message);
       return this.getEmptyDNS();
     }
   }
@@ -408,6 +411,8 @@ export class EvidenceCollector {
         const validTo = new Date(cert.valid_to);
         const daysUntilExpiry = Math.floor((validTo.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
+        console.log(`[Evidence] TLS collected for ${parsedUrl.hostname}: valid=${socket.authorized}, issuer=${cert.issuer?.O}, expiry=${daysUntilExpiry}d`);
+
         resolve({
           valid: socket.authorized,
           issuer: cert.issuer?.O || 'Unknown',
@@ -422,7 +427,10 @@ export class EvidenceCollector {
         });
       });
 
-      req.on('error', () => resolve(null));
+      req.on('error', (error) => {
+        console.warn(`[Evidence] TLS connection failed for ${url}:`, error.message);
+        resolve(null);
+      });
       req.end();
     });
   }
