@@ -247,7 +247,6 @@ export class ReachabilityChecker {
   }> {
     return new Promise((resolve) => {
       const parsedUrl = new URL(url);
-      const client = parsedUrl.protocol === 'https:' ? https : http;
       const redirectChain: string[] = [url];
       let currentUrl = url;
       let redirectCount = 0;
@@ -255,6 +254,8 @@ export class ReachabilityChecker {
 
       const makeRequest = (targetUrl: string): void => {
         const parsedTarget = new URL(targetUrl);
+        // Determine the correct client based on the target URL protocol (not initial URL)
+        const client = parsedTarget.protocol === 'https:' ? https : http;
         const options = {
           method: 'GET',
           timeout: this.timeout,
