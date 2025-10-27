@@ -230,39 +230,87 @@ export function runURLPatternAnalysisCategory(ctx: CategoryExecutionContext): Ca
   const hostname = parsedUrl.hostname;
   const path = parsedUrl.pathname;
 
-  // Check 2.5.1: Banking/financial keywords in URL (CRITICAL FOR PHISHING)
-  const bankingKeywords = [
-    'bank', 'cibc', 'td', 'rbc', 'scotia', 'bmo', 'tangerine',
-    'simplii', 'desjardins', 'paypal', 'chase', 'wellsfargo',
-    'login', 'signin', 'account', 'verify', 'update', 'secure',
-    'banking', 'onlinebanking', 'ebanking', 'netbanking', 'credential'
+  // Check 2.5.1: Brand impersonation detection (CRITICAL FOR PHISHING)
+  // Detects when brand keywords appear in URL but NOT on the official domain
+  const brandKeywords = [
+    // Banks - Canadian
+    { keyword: 'cibc', official: ['cibc.com'] },
+    { keyword: 'td', official: ['td.com', 'tdbank.com'] },
+    { keyword: 'rbc', official: ['rbc.com', 'rbcroyalbank.com'] },
+    { keyword: 'scotia', official: ['scotiabank.com'] },
+    { keyword: 'bmo', official: ['bmo.com'] },
+    { keyword: 'tangerine', official: ['tangerine.ca'] },
+    { keyword: 'simplii', official: ['simplii.com'] },
+    { keyword: 'desjardins', official: ['desjardins.com'] },
+    // Banks - US
+    { keyword: 'paypal', official: ['paypal.com'] },
+    { keyword: 'chase', official: ['chase.com'] },
+    { keyword: 'wellsfargo', official: ['wellsfargo.com'] },
+    { keyword: 'bankofamerica', official: ['bankofamerica.com'] },
+    { keyword: 'citi', official: ['citi.com', 'citibank.com'] },
+    { keyword: 'capitalone', official: ['capitalone.com'] },
+    // Cloud Storage & File Sharing
+    { keyword: 'dropbox', official: ['dropbox.com'] },
+    { keyword: 'onedrive', official: ['onedrive.com', 'onedrive.live.com'] },
+    { keyword: 'googledrive', official: ['drive.google.com'] },
+    { keyword: 'icloud', official: ['icloud.com'] },
+    { keyword: 'sharepoint', official: ['sharepoint.com'] },
+    // Document Services (INCLUDING DOCUSIGN!)
+    { keyword: 'docusign', official: ['docusign.com', 'docusign.net'] },
+    { keyword: 'adobesign', official: ['adobesign.com', 'adobe.com'] },
+    { keyword: 'hellosign', official: ['hellosign.com'] },
+    // Tech Companies (commonly impersonated)
+    { keyword: 'microsoft', official: ['microsoft.com', 'live.com', 'outlook.com', 'office.com'] },
+    { keyword: 'google', official: ['google.com', 'gmail.com'] },
+    { keyword: 'apple', official: ['apple.com', 'icloud.com'] },
+    { keyword: 'amazon', official: ['amazon.com'] },
+    { keyword: 'facebook', official: ['facebook.com', 'fb.com', 'meta.com'] },
+    { keyword: 'netflix', official: ['netflix.com'] },
+    { keyword: 'spotify', official: ['spotify.com'] },
+    // Crypto
+    { keyword: 'coinbase', official: ['coinbase.com'] },
+    { keyword: 'binance', official: ['binance.com'] }
   ];
 
-  const foundBankingKeywords = bankingKeywords.filter(kw => urlLower.includes(kw));
+  const impersonatedBrands: string[] = [];
+  
+  for (const brand of brandKeywords) {
+    if (urlLower.includes(brand.keyword)) {
+      // Check if this is the OFFICIAL domain
+      const isOfficialDomain = brand.official.some(domain => 
+        hostname === domain || hostname.endsWith('.' + domain)
+      );
+      
+      // Only flag as phishing if keyword present but NOT official domain
+      if (!isOfficialDomain) {
+        impersonatedBrands.push(brand.keyword);
+      }
+    }
+  }
 
-  if (foundBankingKeywords.length > 0) {
+  if (impersonatedBrands.length > 0) {
     checks.push({
-      checkId: 'banking_keywords_in_url',
-      name: 'Banking Keywords in URL',
+      checkId: 'brand_impersonation',
+      name: 'Brand Impersonation Detection',
       category: 'security',
       status: 'FAIL',
       points: 0,
       maxPoints: 15,
-      description: `URL contains banking keywords: ${foundBankingKeywords.join(', ')} - strong phishing indicator`,
-      evidence: { keywords: foundBankingKeywords },
+      description: `URL impersonates ${impersonatedBrands.length} brand(s): ${impersonatedBrands.join(', ')} - CRITICAL phishing indicator`,
+      evidence: { impersonatedBrands, hostname },
       timestamp: new Date()
     });
-    points += 25; // VERY HIGH RISK PENALTY
+    points += 30; // VERY HIGH RISK PENALTY for brand impersonation
   } else {
     checks.push({
-      checkId: 'banking_keywords_in_url',
-      name: 'Banking Keywords in URL',
+      checkId: 'brand_impersonation',
+      name: 'Brand Impersonation Detection',
       category: 'security',
       status: 'PASS',
       points: 15,
       maxPoints: 15,
-      description: 'No banking keywords found in URL',
-      evidence: { keywords: [] },
+      description: 'No brand impersonation detected',
+      evidence: { impersonatedBrands: [], hostname },
       timestamp: new Date()
     });
   }

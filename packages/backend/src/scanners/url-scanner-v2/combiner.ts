@@ -258,26 +258,27 @@ export class PredictionCombiner {
     let adjustedProb = probability;
     let boost = 0;
 
-    // Aggressive boosting for high-risk category scores
-    if (categoryRiskFactor > 0.8) {
-      // Very high category risk (>80% of possible points)
-      // Ensure probability is at least 90% (Grade E/F)
-      boost = Math.max(0, 0.90 - probability);
-      adjustedProb = Math.max(probability, 0.90);
-    } else if (categoryRiskFactor > 0.6) {
-      // High category risk (60-80% of possible points)
-      // Ensure probability is at least 75% (Grade D/E)
-      boost = Math.max(0, 0.75 - probability);
-      adjustedProb = Math.max(probability, 0.75);
-    } else if (categoryRiskFactor > 0.4) {
-      // Medium category risk (40-60% of possible points)
-      // Ensure probability is at least 50% (Grade C/D)
-      boost = Math.max(0, 0.50 - probability);
-      adjustedProb = Math.max(probability, 0.50);
+    // SUPER AGGRESSIVE boosting for high-risk category scores
+    // Lower thresholds + higher boosts = better phishing detection
+    if (categoryRiskFactor > 0.7) {
+      // Very high category risk (>70% of possible points)
+      // Ensure probability is at least 95% (Grade F) - INCREASED from 90%
+      boost = Math.max(0, 0.95 - probability);
+      adjustedProb = Math.max(probability, 0.95);
+    } else if (categoryRiskFactor > 0.5) {
+      // High category risk (50-70% of possible points) - LOWERED from 60%
+      // Ensure probability is at least 80% (Grade E) - INCREASED from 75%
+      boost = Math.max(0, 0.80 - probability);
+      adjustedProb = Math.max(probability, 0.80);
+    } else if (categoryRiskFactor > 0.35) {
+      // Medium category risk (35-50% of possible points) - LOWERED from 40%
+      // Ensure probability is at least 65% (Grade D) - INCREASED from 50%
+      boost = Math.max(0, 0.65 - probability);
+      adjustedProb = Math.max(probability, 0.65);
     } else if (categoryRiskFactor > 0.25) {
-      // Low-medium category risk (25-40% of possible points)
+      // Low-medium category risk (25-35% of possible points)
       // Apply modest boost
-      boost = categoryRiskFactor * 0.15;
+      boost = categoryRiskFactor * 0.20;  // INCREASED from 0.15
       adjustedProb = Math.min(1, probability + boost);
     }
 
@@ -438,19 +439,19 @@ export function getDefaultBranchThresholds(): Record<ReachabilityStatus, BranchT
     },
     [ReachabilityStatus.OFFLINE]: {
       branch: ReachabilityStatus.OFFLINE,
-      safeThreshold: 0.25,        // Higher threshold (offline doesn't mean malicious)
-      lowThreshold: 0.45,
-      mediumThreshold: 0.65,
-      highThreshold: 0.85,
-      criticalThreshold: 0.95
+      safeThreshold: 0.15,        // LOWERED: More aggressive phishing detection
+      lowThreshold: 0.30,         // LOWERED: Catch more phishing as "Low Risk"
+      mediumThreshold: 0.50,      // LOWERED: Flag suspicious patterns earlier
+      highThreshold: 0.70,        // LOWERED: More phishing URLs get D/E grades
+      criticalThreshold: 0.85     // LOWERED: Critical threshold for Grade F
     },
     [ReachabilityStatus.WAF]: {
       branch: ReachabilityStatus.WAF,
-      safeThreshold: 0.20,
-      lowThreshold: 0.40,
-      mediumThreshold: 0.60,
-      highThreshold: 0.80,
-      criticalThreshold: 0.95
+      safeThreshold: 0.15,        // LOWERED: WAF-protected sites can still be phishing
+      lowThreshold: 0.30,         // LOWERED: More aggressive for WAF
+      mediumThreshold: 0.50,      // LOWERED: Align with OFFLINE thresholds
+      highThreshold: 0.70,        // LOWERED: Catch more phishing
+      criticalThreshold: 0.85     // LOWERED: Critical threshold
     },
     [ReachabilityStatus.PARKED]: {
       branch: ReachabilityStatus.PARKED,
