@@ -10,7 +10,7 @@ import {
   Shield, AlertTriangle, XCircle, CheckCircle, Info,
   Activity, Target, Brain, Download, Share2,
   Clock, Server, Lock, Globe, Eye, Code, AlertCircle,
-  ChevronDown, ChevronUp, Zap, Gauge, List, BarChart3, FileText
+  ChevronDown, ChevronUp, Zap, Gauge, List, BarChart3
 } from 'lucide-react';
 
 interface V2ScanResultsProps {
