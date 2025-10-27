@@ -35,6 +35,8 @@ import type {
   ScreenshotEvidence,
   ReachabilityResult
 } from './types';
+import { ScreenshotCaptureService } from './screenshot-capture.js';
+import { logger } from '../../config/logger.js';
 
 /**
  * Evidence Collector class
@@ -42,10 +44,12 @@ import type {
 export class EvidenceCollector {
   private timeout: number;
   private maxRedirects: number;
+  private screenshotService: ScreenshotCaptureService;
 
   constructor(timeoutMs: number = 30000, maxRedirects: number = 10) {
     this.timeout = timeoutMs;
     this.maxRedirects = maxRedirects;
+    this.screenshotService = new ScreenshotCaptureService();
   }
 
   /**
@@ -90,9 +94,9 @@ export class EvidenceCollector {
       const autoRedirect = this.detectAutoRedirect($);
       const obfuscatedScripts = dom.scripts.some(s => s.obfuscated);
 
-      // Screenshot (simplified - would need browser automation for real implementation)
+      // Screenshot - only capture for ONLINE URLs to save resources
       let screenshot: ScreenshotEvidence | undefined;
-      if (!options.skipScreenshot) {
+      if (!options.skipScreenshot && reachability.status === 'ONLINE') {
         screenshot = await this.collectScreenshot(url);
       }
 
@@ -440,8 +444,26 @@ export class EvidenceCollector {
    * TODO: Implement with Puppeteer/Playwright
    */
   private async collectScreenshot(url: string): Promise<ScreenshotEvidence | undefined> {
-    // Placeholder - real implementation requires browser automation
-    return undefined;
+    try {
+      logger.info(`[Evidence] Capturing screenshot for ${url}`);
+      const result = await this.screenshotService.capture(url);
+
+      if (result.error) {
+        logger.warn(`[Evidence] Screenshot capture failed: ${result.error}`);
+        return undefined;
+      }
+
+      return {
+        url: result.url,
+        width: result.width || 1920,
+        height: result.height || 1080,
+        size: result.size || 0,
+        capturedAt: result.capturedAt || new Date()
+      };
+    } catch (error: any) {
+      logger.error(`[Evidence] Screenshot capture error:`, error.message);
+      return undefined;
+    }
   }
 
   /**
