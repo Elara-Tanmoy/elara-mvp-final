@@ -273,14 +273,16 @@ export function runURLPatternAnalysisCategory(ctx: CategoryExecutionContext): Ca
   ];
 
   const impersonatedBrands: string[] = [];
-  
+  const hostnameLower = hostname.toLowerCase();
+
   for (const brand of brandKeywords) {
-    if (urlLower.includes(brand.keyword)) {
+    // ONLY check hostname (not full URL) to avoid false positives from path/query
+    if (hostnameLower.includes(brand.keyword)) {
       // Check if this is the OFFICIAL domain
-      const isOfficialDomain = brand.official.some(domain => 
+      const isOfficialDomain = brand.official.some(domain =>
         hostname === domain || hostname.endsWith('.' + domain)
       );
-      
+
       // Only flag as phishing if keyword present but NOT official domain
       if (!isOfficialDomain) {
         impersonatedBrands.push(brand.keyword);
@@ -1069,8 +1071,20 @@ export function runTechnicalExploitsCategory(ctx: CategoryExecutionContext): Cat
   const html = ctx.evidence.html.toLowerCase();
 
   // Check: Suspicious script patterns
+  // Whitelist of legitimate domains that commonly use these patterns in their analytics/scripts
+  const trustedDomains = [
+    'google.com', 'youtube.com', 'facebook.com', 'meta.com',
+    'amazon.com', 'microsoft.com', 'apple.com', 'netflix.com',
+    'github.com', 'stackoverflow.com', 'reddit.com', 'twitter.com',
+    'linkedin.com', 'instagram.com', 'tiktok.com', 'spotify.com'
+  ];
+
+  const isTrustedDomain = trustedDomains.some(domain =>
+    ctx.evidence.hostname === domain || ctx.evidence.hostname.endsWith('.' + domain)
+  );
+
   const exploitPatterns = ['eval(', 'unescape(', 'fromcharcode', 'document.write('];
-  const foundExploits = exploitPatterns.filter(pattern => html.includes(pattern));
+  const foundExploits = isTrustedDomain ? [] : exploitPatterns.filter(pattern => html.includes(pattern));
 
   checks.push({
     checkId: 'exploits_suspicious_code',
@@ -1081,8 +1095,10 @@ export function runTechnicalExploitsCategory(ctx: CategoryExecutionContext): Cat
     maxPoints: 15,
     description: foundExploits.length > 0
       ? `Exploit patterns detected: ${foundExploits.join(', ')}`
+      : isTrustedDomain
+      ? 'Trusted domain - no suspicious code check'
       : 'No suspicious code patterns detected',
-    evidence: { exploitPatterns: foundExploits },
+    evidence: { exploitPatterns: foundExploits, trustedDomain: isTrustedDomain },
     timestamp: new Date()
   });
   if (foundExploits.length > 0) points += 15;
