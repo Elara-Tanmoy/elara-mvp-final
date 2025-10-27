@@ -8,7 +8,6 @@ import React, { useState } from 'react';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Loader2, HelpCircle, RefreshCw, Globe, Server, Brain, Eye, Search } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '../components/ui';
 import V2ScanResults from '../components/ScanResults/V2ScanResults';
-import { V2ResultsDisplay } from '../components/V2ResultsDisplay';
 import api from '../lib/api';
 
 interface ScanResult {
