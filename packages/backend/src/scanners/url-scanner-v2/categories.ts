@@ -532,25 +532,373 @@ export function runTrustGraphCategory(ctx: CategoryExecutionContext): CategoryRe
 }
 
 /**
- * Categories 8-17: Simplified implementations (for complete coverage)
+ * Category 8: Malware Detection (45 points)
  */
-function createSimpleCategory(name: string, maxPoints: number, ctx: CategoryExecutionContext, online: boolean = true): CategoryResult {
-  if (online && ctx.reachability !== 'ONLINE') {
-    return { categoryName: name, points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+export function runMalwareDetectionCategory(ctx: CategoryExecutionContext): CategoryResult {
+  const checks: GranularCheckResult[] = [];
+  const maxPoints = 45;
+
+  if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
+    return { categoryName: 'Malware Detection', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
   }
 
-  const checks: GranularCheckResult[] = [{
-    checkId: name.toLowerCase().replace(/\s+/g, '_'),
-    name: `${name} - Basic Check`,
-    category: 'security',
-    status: 'INFO',
-    points: maxPoints,
-    maxPoints,
-    description: `${name} analysis completed`,
-    timestamp: new Date()
-  }];
+  let points = 0;
 
-  return { categoryName: name, points: 0, maxPoints, checks, skipped: false };
+  // Check: Script obfuscation
+  const obfuscatedScripts = ctx.evidence.dom.scripts.filter(s => s.obfuscated).length;
+  checks.push({
+    checkId: 'malware_obfuscation',
+    name: 'JavaScript Obfuscation Detection',
+    category: 'security',
+    status: obfuscatedScripts > 0 ? 'FAIL' : 'PASS',
+    points: obfuscatedScripts > 0 ? 0 : 20,
+    maxPoints: 20,
+    description: obfuscatedScripts > 0 ? `${obfuscatedScripts} obfuscated scripts detected` : 'No script obfuscation detected',
+    evidence: { obfuscatedScripts, totalScripts: ctx.evidence.dom.scripts.length },
+    timestamp: new Date()
+  });
+  if (obfuscatedScripts > 0) points += 20;
+
+  // Check: Suspicious external requests
+  const suspiciousRequests = ctx.evidence.har.suspiciousRequests.length;
+  checks.push({
+    checkId: 'malware_suspicious_requests',
+    name: 'Suspicious Network Requests',
+    category: 'security',
+    status: suspiciousRequests > 0 ? 'WARNING' : 'PASS',
+    points: suspiciousRequests > 0 ? 10 : 25,
+    maxPoints: 25,
+    description: suspiciousRequests > 0 ? `${suspiciousRequests} suspicious network request(s)` : 'No suspicious network activity',
+    evidence: { suspiciousRequests: ctx.evidence.har.suspiciousRequests },
+    timestamp: new Date()
+  });
+  if (suspiciousRequests > 0) points += 10;
+
+  return { categoryName: 'Malware Detection', points, maxPoints, checks, skipped: false };
+}
+
+/**
+ * Category 9: Social Engineering (30 points)
+ */
+export function runSocialEngineeringCategory(ctx: CategoryExecutionContext): CategoryResult {
+  const checks: GranularCheckResult[] = [];
+  const maxPoints = 30;
+
+  if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
+    return { categoryName: 'Social Engineering', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+  }
+
+  let points = 0;
+  const html = ctx.evidence.html.toLowerCase();
+
+  // Check: Urgency keywords
+  const urgencyKeywords = ['urgent', 'immediately', 'expire', 'suspended', 'limited time', 'act now'];
+  const foundUrgency = urgencyKeywords.filter(kw => html.includes(kw));
+
+  checks.push({
+    checkId: 'social_urgency',
+    name: 'Urgency & Pressure Tactics',
+    category: 'security',
+    status: foundUrgency.length >= 2 ? 'FAIL' : foundUrgency.length > 0 ? 'WARNING' : 'PASS',
+    points: foundUrgency.length >= 2 ? 0 : foundUrgency.length > 0 ? 10 : 30,
+    maxPoints: 30,
+    description: foundUrgency.length > 0
+      ? `Urgency tactics detected: ${foundUrgency.join(', ')}`
+      : 'No urgency/pressure tactics detected',
+    evidence: { urgencyKeywords: foundUrgency },
+    timestamp: new Date()
+  });
+  if (foundUrgency.length >= 2) points += 20;
+  else if (foundUrgency.length > 0) points += 10;
+
+  return { categoryName: 'Social Engineering', points, maxPoints, checks, skipped: false };
+}
+
+/**
+ * Category 10: Security Headers (25 points)
+ */
+export function runSecurityHeadersCategory(ctx: CategoryExecutionContext): CategoryResult {
+  const checks: GranularCheckResult[] = [];
+  const maxPoints = 25;
+
+  if (ctx.reachability !== 'ONLINE') {
+    return { categoryName: 'Security Headers', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+  }
+
+  let points = 0;
+
+  // Check: HSTS header
+  const hasHSTS = ctx.evidence.dom.metaTags['strict-transport-security'] !== undefined;
+  checks.push({
+    checkId: 'headers_hsts',
+    name: 'HTTP Strict Transport Security (HSTS)',
+    category: 'security',
+    status: hasHSTS ? 'PASS' : 'WARNING',
+    points: hasHSTS ? 10 : 5,
+    maxPoints: 10,
+    description: hasHSTS ? 'HSTS header present (forces HTTPS)' : 'HSTS header missing (security risk)',
+    evidence: { hasHSTS },
+    timestamp: new Date()
+  });
+  if (!hasHSTS) points += 5;
+
+  // Check: X-Frame-Options
+  const hasXFrameOptions = ctx.evidence.dom.metaTags['x-frame-options'] !== undefined;
+  checks.push({
+    checkId: 'headers_xframe',
+    name: 'X-Frame-Options (Clickjacking Protection)',
+    category: 'security',
+    status: hasXFrameOptions ? 'PASS' : 'WARNING',
+    points: hasXFrameOptions ? 15 : 7,
+    maxPoints: 15,
+    description: hasXFrameOptions ? 'Clickjacking protection enabled' : 'No clickjacking protection',
+    evidence: { hasXFrameOptions },
+    timestamp: new Date()
+  });
+  if (!hasXFrameOptions) points += 8;
+
+  return { categoryName: 'Security Headers', points, maxPoints, checks, skipped: false };
+}
+
+/**
+ * Category 11: DNS & Email Security (25 points)
+ */
+export function runEmailSecurityCategory(ctx: CategoryExecutionContext): CategoryResult {
+  const checks: GranularCheckResult[] = [];
+  const maxPoints = 25;
+  let points = 0;
+
+  // Check: MX records
+  const hasMX = ctx.evidence.dns.mxRecords.length > 0;
+  checks.push({
+    checkId: 'email_mx_records',
+    name: 'Mail Exchange (MX) Records',
+    category: 'technical',
+    status: hasMX ? 'PASS' : 'INFO',
+    points: hasMX ? 10 : 10,
+    maxPoints: 10,
+    description: hasMX ? `${ctx.evidence.dns.mxRecords.length} MX record(s) configured` : 'No email service configured',
+    evidence: { mxRecords: ctx.evidence.dns.mxRecords },
+    timestamp: new Date()
+  });
+
+  // Check: SPF
+  checks.push({
+    checkId: 'email_spf',
+    name: 'SPF (Sender Policy Framework)',
+    category: 'technical',
+    status: ctx.evidence.dns.spfValid ? 'PASS' : hasMX ? 'WARNING' : 'INFO',
+    points: ctx.evidence.dns.spfValid ? 15 : hasMX ? 7 : 15,
+    maxPoints: 15,
+    description: ctx.evidence.dns.spfValid ? 'SPF record configured (anti-spoofing)' : hasMX ? 'SPF missing (emails can be spoofed)' : 'No email service',
+    evidence: { spfValid: ctx.evidence.dns.spfValid, hasMX },
+    timestamp: new Date()
+  });
+  if (hasMX && !ctx.evidence.dns.spfValid) points += 8;
+
+  return { categoryName: 'Email Security (DMARC)', points, maxPoints, checks, skipped: false };
+}
+
+/**
+ * Category 12: Data Protection & Privacy (50 points)
+ */
+export function runDataProtectionCategory(ctx: CategoryExecutionContext): CategoryResult {
+  const checks: GranularCheckResult[] = [];
+  const maxPoints = 50;
+
+  if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
+    return { categoryName: 'Data Protection & Privacy', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+  }
+
+  let points = 0;
+  const html = ctx.evidence.html.toLowerCase();
+
+  // Check: Privacy policy
+  const hasPrivacyPolicy = html.includes('privacy policy') || html.includes('privacy notice');
+  checks.push({
+    checkId: 'privacy_policy',
+    name: 'Privacy Policy Presence',
+    category: 'legitimacy',
+    status: hasPrivacyPolicy ? 'PASS' : 'WARNING',
+    points: hasPrivacyPolicy ? 25 : 10,
+    maxPoints: 25,
+    description: hasPrivacyPolicy ? 'Privacy policy found' : 'No privacy policy detected',
+    evidence: { hasPrivacyPolicy },
+    timestamp: new Date()
+  });
+  if (!hasPrivacyPolicy) points += 15;
+
+  // Check: Cookie consent
+  const hasCookieConsent = html.includes('cookie') && (html.includes('accept') || html.includes('consent'));
+  checks.push({
+    checkId: 'cookie_consent',
+    name: 'Cookie Consent Banner',
+    category: 'legitimacy',
+    status: hasCookieConsent ? 'PASS' : 'INFO',
+    points: hasCookieConsent ? 25 : 15,
+    maxPoints: 25,
+    description: hasCookieConsent ? 'Cookie consent mechanism present' : 'No cookie consent detected',
+    evidence: { hasCookieConsent },
+    timestamp: new Date()
+  });
+  if (!hasCookieConsent) points += 10;
+
+  return { categoryName: 'Data Protection & Privacy', points, maxPoints, checks, skipped: false };
+}
+
+/**
+ * Category 13: Financial Fraud (25 points)
+ */
+export function runFinancialFraudCategory(ctx: CategoryExecutionContext): CategoryResult {
+  const checks: GranularCheckResult[] = [];
+  const maxPoints = 25;
+
+  if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
+    return { categoryName: 'Financial Fraud', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+  }
+
+  let points = 0;
+  const html = ctx.evidence.html.toLowerCase();
+
+  // Check: Financial keywords
+  const financialKeywords = ['bitcoin', 'crypto', 'wallet', 'payment', 'wire transfer', 'bank account', 'credit card'];
+  const foundFinancial = financialKeywords.filter(kw => html.includes(kw));
+
+  checks.push({
+    checkId: 'financial_keywords',
+    name: 'Financial/Payment Keywords Detection',
+    category: 'security',
+    status: foundFinancial.length >= 3 ? 'WARNING' : foundFinancial.length > 0 ? 'INFO' : 'PASS',
+    points: foundFinancial.length >= 3 ? 10 : 25,
+    maxPoints: 25,
+    description: foundFinancial.length > 0
+      ? `Financial keywords found: ${foundFinancial.join(', ')}`
+      : 'No financial keywords detected',
+    evidence: { financialKeywords: foundFinancial },
+    timestamp: new Date()
+  });
+  if (foundFinancial.length >= 3) points += 15;
+
+  return { categoryName: 'Financial Fraud', points, maxPoints, checks, skipped: false };
+}
+
+/**
+ * Category 14: Identity Theft (20 points)
+ */
+export function runIdentityTheftCategory(ctx: CategoryExecutionContext): CategoryResult {
+  const checks: GranularCheckResult[] = [];
+  const maxPoints = 20;
+
+  if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
+    return { categoryName: 'Identity Theft', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+  }
+
+  let points = 0;
+
+  // Check: File upload forms (ID/passport upload risk)
+  const hasFileUpload = ctx.evidence.dom.forms.some(f =>
+    f.inputs.some(i => i.type === 'file')
+  );
+
+  checks.push({
+    checkId: 'identity_file_upload',
+    name: 'File Upload Forms (ID/Document Risk)',
+    category: 'security',
+    status: hasFileUpload ? 'WARNING' : 'PASS',
+    points: hasFileUpload ? 10 : 20,
+    maxPoints: 20,
+    description: hasFileUpload
+      ? 'File upload detected - potential identity document harvesting'
+      : 'No file upload forms detected',
+    evidence: { hasFileUpload },
+    timestamp: new Date()
+  });
+  if (hasFileUpload) points += 10;
+
+  return { categoryName: 'Identity Theft', points, maxPoints, checks, skipped: false };
+}
+
+/**
+ * Category 15: Technical Exploits (15 points)
+ */
+export function runTechnicalExploitsCategory(ctx: CategoryExecutionContext): CategoryResult {
+  const checks: GranularCheckResult[] = [];
+  const maxPoints = 15;
+
+  if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
+    return { categoryName: 'Technical Exploits', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+  }
+
+  let points = 0;
+  const html = ctx.evidence.html.toLowerCase();
+
+  // Check: Suspicious script patterns
+  const exploitPatterns = ['eval(', 'unescape(', 'fromcharcode', 'document.write('];
+  const foundExploits = exploitPatterns.filter(pattern => html.includes(pattern));
+
+  checks.push({
+    checkId: 'exploits_suspicious_code',
+    name: 'Suspicious Code Patterns',
+    category: 'security',
+    status: foundExploits.length > 0 ? 'FAIL' : 'PASS',
+    points: foundExploits.length > 0 ? 0 : 15,
+    maxPoints: 15,
+    description: foundExploits.length > 0
+      ? `Exploit patterns detected: ${foundExploits.join(', ')}`
+      : 'No suspicious code patterns detected',
+    evidence: { exploitPatterns: foundExploits },
+    timestamp: new Date()
+  });
+  if (foundExploits.length > 0) points += 15;
+
+  return { categoryName: 'Technical Exploits', points, maxPoints, checks, skipped: false };
+}
+
+/**
+ * Category 16: Legal & Compliance (35 points)
+ */
+export function runLegalComplianceCategory(ctx: CategoryExecutionContext): CategoryResult {
+  const checks: GranularCheckResult[] = [];
+  const maxPoints = 35;
+
+  if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
+    return { categoryName: 'Legal & Compliance', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+  }
+
+  let points = 0;
+  const html = ctx.evidence.html.toLowerCase();
+
+  // Check: Terms of service
+  const hasTerms = html.includes('terms of service') || html.includes('terms and conditions');
+  checks.push({
+    checkId: 'legal_terms',
+    name: 'Terms of Service',
+    category: 'legitimacy',
+    status: hasTerms ? 'PASS' : 'WARNING',
+    points: hasTerms ? 20 : 10,
+    maxPoints: 20,
+    description: hasTerms ? 'Terms of service found' : 'No terms of service detected',
+    evidence: { hasTerms },
+    timestamp: new Date()
+  });
+  if (!hasTerms) points += 10;
+
+  // Check: Contact information
+  const hasContact = html.includes('contact') && (html.includes('email') || html.includes('phone'));
+  checks.push({
+    checkId: 'legal_contact',
+    name: 'Contact Information',
+    category: 'legitimacy',
+    status: hasContact ? 'PASS' : 'WARNING',
+    points: hasContact ? 15 : 7,
+    maxPoints: 15,
+    description: hasContact ? 'Contact information available' : 'No contact information found',
+    evidence: { hasContact },
+    timestamp: new Date()
+  });
+  if (!hasContact) points += 8;
+
+  return { categoryName: 'Legal & Compliance', points, maxPoints, checks, skipped: false };
 }
 
 /**
@@ -569,24 +917,24 @@ export function executeCategories(ctx: CategoryExecutionContext): {
   results.push(runDomainAnalysisCategory(ctx));       // 40 pts
   results.push(runTrustGraphCategory(ctx));           // 30 pts
 
+  // Always run (works for all reachability states)
+  results.push(runEmailSecurityCategory(ctx));        // 25 pts
+
   // Conditional categories based on reachability (450 points)
   if (ctx.reachability === 'ONLINE') {
-    // Core security checks (260 pts)
-    results.push(runSSLSecurityCategory(ctx));        // 45 pts
-    results.push(runContentAnalysisCategory(ctx));    // 40 pts
-    results.push(runPhishingPatternsCategory(ctx));   // 50 pts
-    results.push(runBehavioralCategory(ctx));         // 25 pts
-
-    // Additional categories (190 pts)
-    results.push(createSimpleCategory('Malware Detection', 45, ctx));
-    results.push(createSimpleCategory('Social Engineering', 30, ctx));
-    results.push(createSimpleCategory('Financial Fraud', 25, ctx));
-    results.push(createSimpleCategory('Identity Theft', 20, ctx));
-    results.push(createSimpleCategory('Technical Exploits', 15, ctx));
-    results.push(createSimpleCategory('Data Protection & Privacy', 50, ctx));
-    results.push(createSimpleCategory('Email Security (DMARC)', 25, ctx));
-    results.push(createSimpleCategory('Legal & Compliance', 35, ctx));
-    results.push(createSimpleCategory('Security Headers', 25, ctx));
+    // ALL categories with REAL implementations - NO PLACEHOLDERS
+    results.push(runSSLSecurityCategory(ctx));          // 45 pts - TLS certificate validation
+    results.push(runContentAnalysisCategory(ctx));      // 40 pts - HTML/DOM/script analysis
+    results.push(runPhishingPatternsCategory(ctx));     // 50 pts - Login forms/brand checks
+    results.push(runBehavioralCategory(ctx));           // 25 pts - Auto-download/redirect detection
+    results.push(runMalwareDetectionCategory(ctx));     // 45 pts - Script obfuscation/suspicious requests
+    results.push(runSocialEngineeringCategory(ctx));    // 30 pts - Urgency/pressure tactics
+    results.push(runDataProtectionCategory(ctx));       // 50 pts - Privacy policy/cookie consent
+    results.push(runSecurityHeadersCategory(ctx));      // 25 pts - HSTS/X-Frame-Options
+    results.push(runFinancialFraudCategory(ctx));       // 25 pts - Financial keyword detection
+    results.push(runIdentityTheftCategory(ctx));        // 20 pts - File upload/ID harvesting
+    results.push(runTechnicalExploitsCategory(ctx));    // 15 pts - Exploit pattern detection
+    results.push(runLegalComplianceCategory(ctx));      // 35 pts - Terms/contact info
   }
 
   // Calculate totals
