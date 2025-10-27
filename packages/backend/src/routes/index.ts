@@ -27,6 +27,7 @@ import messageScanAdminRoutes from './message-scan-admin.routes.js';
 import globalSettingsRoutes from './admin/globalSettings.routes.js';
 import v2AIRoutes from './v2-ai.routes.js';
 import v2ConfigRoutes from './v2-config.routes.js';
+import v2AdminRoutes from './v2-admin.routes.js';
 import { whatsappWebhookController } from '../controllers/whatsapp-webhook.controller.js';
 import { whatsappAdminController } from '../controllers/whatsapp-admin.controller.js';
 
@@ -287,6 +288,14 @@ logger.info('[Routes] Message Scan Admin routes registered');
 logger.info('[Routes] Registering Global Settings Admin routes at /v2/admin/global-settings...');
 router.use('/v2/admin/global-settings', authenticate, requireAdmin, globalSettingsRoutes);
 logger.info('[Routes] Global Settings Admin routes registered');
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V2 SCANNER ADMIN ROUTES - Admin Panel
+// ═══════════════════════════════════════════════════════════════════════════
+// V2 Scanner Admin Panel - Admin only (for V2 scanner configuration management)
+logger.info('[Routes] Registering V2 Scanner Admin routes at /v2-admin...');
+router.use('/v2-admin', v2AdminRoutes);
+logger.info('[Routes] V2 Scanner Admin routes registered');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // WHATSAPP WEBHOOK ROUTES - NEW

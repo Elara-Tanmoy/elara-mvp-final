@@ -25,6 +25,8 @@ import { createPolicyEngine, probabilityToRiskLevel } from './policy';
 import { executeCategories } from './categories';
 // External API services removed - using only Vertex AI and internal checks
 import { geminiScanSummarizerService } from '../../services/ai/gemini-scan-summarizer.service.js';
+import { V2GeminiSummarizer } from '../../services/gemini/v2-summarizer.service.js';
+import { formatNonTechSummary, formatTechSummary } from './result-formatters';
 import { ReachabilityStatus, RiskLevel } from './types';
 import type {
   EnhancedScanResult,
@@ -37,9 +39,11 @@ import type {
  */
 export class URLScannerV2 {
   private config: V2Config;
+  private geminiSummarizer: V2GeminiSummarizer;
 
   constructor(config: V2Config) {
     this.config = config;
+    this.geminiSummarizer = new V2GeminiSummarizer();
   }
 
   /**
@@ -283,21 +287,38 @@ export class URLScannerV2 {
           combinerResult.confidenceInterval.width < 0.4 ? 'medium' : 'low'
       };
 
-      // Step 11: Generate AI summary (optional, don't fail scan if it errors)
-      console.log(`[V2Scanner] Step 11: Generating AI summary...`);
+      // Step 11: Generate AI summary and formatted outputs (optional, don't fail scan if it errors)
+      console.log(`[V2Scanner] Step 11: Generating AI summary and formatted outputs...`);
       let aiSummary;
+      let nonTechSummary;
+      let techSummary;
+
       try {
-        aiSummary = await geminiScanSummarizerService.summarizeScan(preliminaryResult);
+        // Generate AI summary using new Gemini service
+        aiSummary = await this.geminiSummarizer.generateSummary(preliminaryResult);
         console.log(`[V2Scanner] AI summary generated successfully`);
       } catch (error: any) {
         console.warn('[V2Scanner] Failed to generate AI summary:', error.message);
         aiSummary = undefined;
       }
 
-      // Build final result with AI summary
+      try {
+        // Generate formatted summaries
+        nonTechSummary = formatNonTechSummary(preliminaryResult);
+        techSummary = formatTechSummary(preliminaryResult);
+        console.log(`[V2Scanner] Formatted summaries generated successfully`);
+      } catch (error: any) {
+        console.warn('[V2Scanner] Failed to generate formatted summaries:', error.message);
+        nonTechSummary = undefined;
+        techSummary = undefined;
+      }
+
+      // Build final result with AI summary and formatted outputs
       const result: EnhancedScanResult = {
         ...preliminaryResult,
-        aiSummary
+        aiSummary,
+        nonTechSummary,
+        techSummary
       };
 
       console.log(`\n========== V2 SCAN COMPLETE ==========`);

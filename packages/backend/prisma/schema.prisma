@@ -2144,3 +2144,108 @@ model V2ModelPerformance {
   @@index([windowStart])
   @@map("v2_model_performance")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V2 SCANNER ADMIN CONFIGURATION MODELS
+// ═══════════════════════════════════════════════════════════════════════════
+
+model V2CategoryConfig {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  version     String
+  isActive    Boolean @default(false)
+  isDefault   Boolean @default(false)
+
+  // Category weights (JSON)
+  categoryWeights Json // { "threat_intel": 50, "domain_analysis": 40, ... }
+
+  // Usage tracking
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
+
+  // Relations
+  checks     V2CheckConfig[]
+  thresholds V2BranchThreshold[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@index([isActive])
+  @@index([isDefault])
+  @@map("v2_category_configs")
+}
+
+model V2CheckConfig {
+  id       String @id @default(cuid())
+  checkId  String // e.g., "domain_age", "whois_privacy"
+  name     String
+  category String // Parent category
+
+  // Point configuration
+  defaultPoints Int
+  currentPoints Int
+  maxPoints     Int
+
+  // Check settings
+  enabled     Boolean @default(true)
+  severity    String // low, medium, high, critical
+  description String?
+  config      Json? // Check-specific config
+
+  // Relations
+  configId       String
+  categoryConfig V2CategoryConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@index([checkId])
+  @@index([configId])
+  @@map("v2_check_configs")
+}
+
+model V2PolicyRule {
+  id       String  @id @default(cuid())
+  name     String
+  priority Int // 1 = highest
+  enabled  Boolean @default(true)
+
+  // Rule definition
+  condition Json // { type: 'AND', clauses: [...] }
+  action    Json // { type: 'OVERRIDE', riskLevel: 'F', ... }
+
+  // Usage tracking
+  appliedCount  Int       @default(0)
+  lastAppliedAt DateTime?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  @@index([enabled])
+  @@index([priority])
+  @@map("v2_policy_rules")
+}
+
+model V2BranchThreshold {
+  id     String @id @default(cuid())
+  branch String // ONLINE, OFFLINE, PARKED, WAF, SINKHOLE
+
+  // Thresholds
+  safeThreshold     Float
+  lowThreshold      Float
+  mediumThreshold   Float
+  highThreshold     Float
+  criticalThreshold Float
+
+  // Relations
+  configId       String
+  categoryConfig V2CategoryConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+
+  @@index([branch])
+  @@index([configId])
+  @@map("v2_branch_thresholds")
+}
