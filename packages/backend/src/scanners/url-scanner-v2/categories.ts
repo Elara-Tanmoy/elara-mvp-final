@@ -216,6 +216,135 @@ export function runDomainAnalysisCategory(ctx: CategoryExecutionContext): Catego
 }
 
 /**
+ * Category 2.5: URL Pattern Analysis (30 points)
+ * CRITICAL: Runs for ALL reachability states (OFFLINE phishing detection)
+ * Checks URL structure for phishing indicators WITHOUT needing page content
+ */
+export function runURLPatternAnalysisCategory(ctx: CategoryExecutionContext): CategoryResult {
+  const checks: GranularCheckResult[] = [];
+  let points = 0;
+  const maxPoints = 30;
+
+  const urlLower = ctx.url.toLowerCase();
+  const parsedUrl = new URL(ctx.url);
+  const hostname = parsedUrl.hostname;
+  const path = parsedUrl.pathname;
+
+  // Check 2.5.1: Banking/financial keywords in URL (CRITICAL FOR PHISHING)
+  const bankingKeywords = [
+    'bank', 'cibc', 'td', 'rbc', 'scotia', 'bmo', 'tangerine',
+    'simplii', 'desjardins', 'paypal', 'chase', 'wellsfargo',
+    'login', 'signin', 'account', 'verify', 'update', 'secure',
+    'banking', 'onlinebanking', 'ebanking', 'netbanking', 'credential'
+  ];
+
+  const foundBankingKeywords = bankingKeywords.filter(kw => urlLower.includes(kw));
+
+  if (foundBankingKeywords.length > 0) {
+    checks.push({
+      checkId: 'banking_keywords_in_url',
+      name: 'Banking Keywords in URL',
+      category: 'security',
+      status: 'FAIL',
+      points: 0,
+      maxPoints: 15,
+      description: `URL contains banking keywords: ${foundBankingKeywords.join(', ')} - strong phishing indicator`,
+      evidence: { keywords: foundBankingKeywords },
+      timestamp: new Date()
+    });
+    points += 25; // VERY HIGH RISK PENALTY
+  } else {
+    checks.push({
+      checkId: 'banking_keywords_in_url',
+      name: 'Banking Keywords in URL',
+      category: 'security',
+      status: 'PASS',
+      points: 15,
+      maxPoints: 15,
+      description: 'No banking keywords found in URL',
+      evidence: { keywords: [] },
+      timestamp: new Date()
+    });
+  }
+
+  // Check 2.5.2: Suspicious URL patterns (homoglyphs, excessive subdomain levels)
+  const suspiciousPatterns = [
+    /\d{10,}/, // 10+ consecutive digits
+    /[a-z]{30,}/, // 30+ consecutive letters (random strings)
+    /-verify|-secure|-update|-account/i, // Suspicious action words
+    /\.(tk|ml|ga|cf|gq|xyz)\//i, // High-risk TLDs in path
+  ];
+
+  const foundPatterns = suspiciousPatterns.filter(pattern => pattern.test(urlLower));
+
+  if (foundPatterns.length > 0) {
+    checks.push({
+      checkId: 'suspicious_url_pattern',
+      name: 'Suspicious URL Pattern',
+      category: 'technical',
+      status: 'WARNING',
+      points: 5,
+      maxPoints: 10,
+      description: `URL contains ${foundPatterns.length} suspicious pattern(s)`,
+      evidence: { patternCount: foundPatterns.length },
+      timestamp: new Date()
+    });
+    points += 10;
+  } else {
+    checks.push({
+      checkId: 'suspicious_url_pattern',
+      name: 'Suspicious URL Pattern',
+      category: 'technical',
+      status: 'PASS',
+      points: 10,
+      maxPoints: 10,
+      description: 'No suspicious URL patterns detected',
+      evidence: { patternCount: 0 },
+      timestamp: new Date()
+    });
+  }
+
+  // Check 2.5.3: Path contains login/signin/verify (phishing target pages)
+  const sensitivePathKeywords = ['login', 'signin', 'verify', 'validate', 'confirm', 'authenticate'];
+  const hasSensitivePath = sensitivePathKeywords.some(kw => path.toLowerCase().includes(kw));
+
+  if (hasSensitivePath) {
+    checks.push({
+      checkId: 'sensitive_path_detected',
+      name: 'Sensitive Path Detection',
+      category: 'security',
+      status: 'WARNING',
+      points: 0,
+      maxPoints: 5,
+      description: 'URL path contains login/signin/verify keywords',
+      evidence: { path: path },
+      timestamp: new Date()
+    });
+    points += 5;
+  } else {
+    checks.push({
+      checkId: 'sensitive_path_detected',
+      name: 'Sensitive Path Detection',
+      category: 'security',
+      status: 'PASS',
+      points: 5,
+      maxPoints: 5,
+      description: 'No sensitive keywords in URL path',
+      evidence: { path: path },
+      timestamp: new Date()
+    });
+  }
+
+  return {
+    categoryName: 'URL Pattern Analysis',
+    points,
+    maxPoints,
+    checks,
+    skipped: false
+  };
+}
+
+/**
  * Category 3: SSL/TLS Security (45 points)
  * Only runs for ONLINE sites with HTTPS
  */
@@ -971,12 +1100,11 @@ export function executeCategories(ctx: CategoryExecutionContext): {
 } {
   const results: CategoryResult[] = [];
 
-  // Always run these regardless of reachability (120 points)
+  // Always run these regardless of reachability (175 points)
   results.push(runThreatIntelCategory(ctx));          // 50 pts
   results.push(runDomainAnalysisCategory(ctx));       // 40 pts
+  results.push(runURLPatternAnalysisCategory(ctx));   // 30 pts - CRITICAL FOR OFFLINE PHISHING
   results.push(runTrustGraphCategory(ctx));           // 30 pts
-
-  // Always run (works for all reachability states)
   results.push(runEmailSecurityCategory(ctx));        // 25 pts
 
   // Conditional categories based on reachability (450 points)
