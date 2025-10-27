@@ -360,6 +360,21 @@ export interface PolicyResult {
 }
 
 /**
+ * Granular check result for detailed analysis
+ */
+export interface GranularCheckResult {
+  checkId: string;
+  name: string;
+  category: 'security' | 'legitimacy' | 'reputation' | 'technical';
+  status: 'PASS' | 'FAIL' | 'WARNING' | 'INFO' | 'SKIPPED';
+  points: number;
+  maxPoints: number;
+  description: string;
+  evidence?: any;
+  timestamp: Date;
+}
+
+/**
  * Final V2 scan result
  */
 export interface EnhancedScanResult {
@@ -385,6 +400,9 @@ export interface EnhancedScanResult {
   // Model predictions
   stage1: Stage1Predictions;
   stage2?: Stage2Predictions;
+
+  // Granular checks for detailed UI display
+  granularChecks?: GranularCheckResult[];
 
   // Policy
   policyOverride?: PolicyResult;
