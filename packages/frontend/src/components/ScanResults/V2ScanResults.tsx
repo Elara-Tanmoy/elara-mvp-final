@@ -10,7 +10,7 @@ import {
   Shield, AlertTriangle, XCircle, CheckCircle, Info,
   Activity, Target, Brain, Download, Share2,
   Clock, Server, Lock, Globe, Eye, Code, AlertCircle,
-  ChevronDown, ChevronUp, Zap, Gauge
+  ChevronDown, ChevronUp, Zap, Gauge, List, BarChart3, FileText
 } from 'lucide-react';
 
 interface V2ScanResultsProps {
@@ -268,6 +268,76 @@ const V2ScanResults: React.FC<V2ScanResultsProps> = ({ scan }) => {
           </div>
         )}
       </div>
+
+
+      {/* Granular Checks - NEW */}
+      {scan.granularChecks && scan.granularChecks.length > 0 && (
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <button onClick={() => toggleSection('granularChecks')} className="w-full flex items-center justify-between p-6 hover:bg-gray-50">
+            <div className="flex items-center gap-3">
+              <List className="w-6 h-6 text-purple-600" />
+              <h3 className="text-xl font-bold text-gray-900">Granular Checks ({scan.granularChecks.length})</h3>
+            </div>
+            {expandedSections.has('granularChecks') ? <ChevronUp /> : <ChevronDown />}
+          </button>
+          {expandedSections.has('granularChecks') && (
+            <div className="border-t p-6">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Check</th>
+                    <th className="px-4 py-3 text-left">Description</th>
+                    <th className="px-4 py-3 text-left">Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scan.granularChecks.map((c: any, i: number) => (
+                    <tr key={i}>
+                      <td className="px-4 py-3">
+                        {c.status === 'PASS' && <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">PASS</span>}
+                        {c.status === 'FAIL' && <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs">FAIL</span>}
+                        {c.status === 'WARNING' && <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs">WARN</span>}
+                      </td>
+                      <td className="px-4 py-3">{c.name}</td>
+                      <td className="px-4 py-3">{c.description}</td>
+                      <td className="px-4 py-3">{c.points}/{c.maxPoints}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Categories - NEW */}
+      {scan.categoryResults && (
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <button onClick={() => toggleSection('categories')} className="w-full flex items-center justify-between p-6 hover:bg-gray-50">
+            <div className="flex items-center gap-3">
+              <BarChart3 className="w-6 h-6 text-blue-600" />
+              <h3 className="text-xl font-bold">Categories ({scan.categoryResults.totalPoints}/{scan.categoryResults.totalPossible} pts)</h3>
+            </div>
+            {expandedSections.has('categories') ? <ChevronUp /> : <ChevronDown />}
+          </button>
+          {expandedSections.has('categories') && (
+            <div className="border-t p-6 space-y-3">
+              {scan.categoryResults.categories && scan.categoryResults.categories.map((cat: any, i: number) => (
+                <div key={i} className="border rounded p-4">
+                  <div className="flex justify-between mb-2">
+                    <span className="font-semibold">{cat.name}</span>
+                    <span>{cat.points}/{cat.maxPoints}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="h-2 rounded-full bg-red-500" style={{ width: `${Math.min(cat.points / cat.maxPoints * 100, 100)}%` }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Detailed Checks Grid */}
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
