@@ -64,10 +64,12 @@ export class Stage1ModelRunner {
         tabular.probability
       );
 
-      const combinedConf = Math.min(
-        lexicalA.confidence,
-        lexicalB.confidence,
-        tabular.confidence
+      // Use weighted average for confidence instead of minimum
+      // This prevents one low-confidence model from dragging down the combined confidence
+      const combinedConf = (
+        lexicalA.confidence * 0.25 +
+        lexicalB.confidence * 0.35 +
+        tabular.confidence * 0.40
       );
 
       // Determine if we should early exit
@@ -382,7 +384,9 @@ export class Stage1ModelRunner {
       pathDepth > 5
     ].filter(Boolean).length;
 
-    const confidence = Math.min(0.7, signalCount * 0.1); // Max 70% confidence for heuristic
+    // Improved confidence calculation: base 0.30 + 0.10 per signal
+    // This gives reasonable confidence even with few signals
+    const confidence = Math.min(0.85, 0.30 + signalCount * 0.10);
 
     console.log(`[Stage1] URLBERT Fallback: prob=${(probability * 100).toFixed(1)}%, conf=${confidence.toFixed(2)} (${signalCount} signals)`);
 
@@ -400,8 +404,12 @@ export class Stage1ModelRunner {
     let riskScore = 0;
     const weights: Record<string, number> = {};
 
-    // Domain age (younger = riskier)
-    if (tabular.domainAge < 7) {
+    // Domain age (younger = MUCH riskier)
+    if (tabular.domainAge === 0) {
+      // Brand new domain registered today = VERY suspicious
+      riskScore += 50;
+      weights.domainAge = 50;
+    } else if (tabular.domainAge < 7) {
       riskScore += 40;
       weights.domainAge = 40;
     } else if (tabular.domainAge < 30) {
@@ -412,18 +420,21 @@ export class Stage1ModelRunner {
       weights.domainAge = 10;
     }
 
-    // TLD risk
-    riskScore += tabular.tldRiskScore * 0.15;
-    weights.tldRisk = tabular.tldRiskScore * 0.15;
+    // TLD risk (high-risk TLDs like .ru, .tk, etc.)
+    riskScore += tabular.tldRiskScore * 0.20; // Increased weight
+    weights.tldRisk = tabular.tldRiskScore * 0.20;
 
-    // TI hits
-    riskScore += tabular.tiHitCount * 10;
-    weights.tiHits = tabular.tiHitCount * 10;
+    // TI hits (ANY TI hit is significant)
+    riskScore += tabular.tiHitCount * 15; // Increased from 10
+    weights.tiHits = tabular.tiHitCount * 15;
 
-    // Tier-1 TI hits (critical)
+    // Tier-1 TI hits (CRITICAL - should almost guarantee high risk)
     if (tabular.tiTier1Hits >= 2) {
-      riskScore += 50;
-      weights.tiTier1 = 50;
+      riskScore += 60; // Increased from 50
+      weights.tiTier1 = 60;
+    } else if (tabular.tiTier1Hits === 1) {
+      riskScore += 30; // Even single tier-1 hit is significant
+      weights.tiTier1 = 30;
     }
 
     // TLS issues
@@ -452,7 +463,19 @@ export class Stage1ModelRunner {
 
     // Normalize to [0, 1]
     const probability = Math.min(1, riskScore / 100);
-    const confidence = 0.5; // Medium confidence for heuristic
+
+    // Calculate confidence based on number of strong signals
+    const strongSignals = [
+      tabular.domainAge < 30,
+      tabular.tldRiskScore > 5,
+      tabular.tiHitCount > 0,
+      tabular.tiTier1Hits > 0,
+      tabular.tlsScore < 50,
+      tabular.dnsHealthScore < 50
+    ].filter(Boolean).length;
+
+    // Base confidence 0.40 + 0.10 per signal
+    const confidence = Math.min(0.90, 0.40 + strongSignals * 0.10);
 
     return {
       probability,

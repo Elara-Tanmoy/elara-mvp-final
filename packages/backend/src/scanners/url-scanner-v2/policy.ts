@@ -66,6 +66,36 @@ export class PolicyEngine {
       };
     }
 
+    // Rule 2.5: ANY TI hit + suspicious characteristics → HIGH RISK
+    if (tiData && tiData.totalHits > 0) {
+      // If URL is in TI database at all, it's suspicious
+      // Combine with other factors for severity
+      const suspiciousFactors = [
+        features.tabular.domainAge < 30,
+        features.tabular.tldRiskScore > 5,
+        reachability === ReachabilityStatus.OFFLINE
+      ].filter(Boolean).length;
+
+      if (suspiciousFactors >= 2) {
+        return {
+          overridden: true,
+          riskLevel: RiskLevel.E,
+          reason: `URL found in threat intelligence database (${tiData.totalHits} source${tiData.totalHits > 1 ? 's' : ''}) with suspicious characteristics: ${suspiciousFactors >= 3 ? 'newly registered domain, high-risk TLD, currently offline' : suspiciousFactors === 2 ? 'newly registered domain, high-risk TLD or offline' : 'suspicious domain characteristics'}`,
+          rule: 'RULE_TI_HIT_WITH_SUSPICIOUS_FACTORS',
+          action: 'BLOCK'
+        };
+      } else if (tiData.totalHits >= 2) {
+        // Multiple TI sources = high risk even without other factors
+        return {
+          overridden: true,
+          riskLevel: RiskLevel.E,
+          reason: `URL reported by multiple threat intelligence sources (${tiData.totalHits} sources)`,
+          rule: 'RULE_MULTIPLE_TI_HITS',
+          action: 'BLOCK'
+        };
+      }
+    }
+
     // Rule 3: Phishing trinity → HIGH/CRITICAL
     if (this.isPhishingTrinity(features)) {
       const riskLevel = combinerResult.probability > 0.8 ? RiskLevel.F : RiskLevel.E;

@@ -270,12 +270,16 @@ export class PredictionCombiner {
     // ICP confidence interval
     // Width depends on the nonconformity scores from calibration set
 
-    // Simplified: Use a heuristic based on probability
-    // In production, this would use actual nonconformity scores
+    // Improved: Use a tighter interval based on probability extremity
+    // More confident near 0 and 1, less confident near 0.5
 
-    // Confidence interval is narrower near 0 and 1, wider near 0.5
-    const uncertainty = 4 * probability * (1 - probability); // Variance of Bernoulli
-    const margin = uncertainty * Math.sqrt(-Math.log(alpha / 2));
+    // Calculate uncertainty: max at 0.5, min at 0 and 1
+    const uncertainty = probability * (1 - probability); // Variance of Bernoulli (0 to 0.25)
+
+    // Scale margin to be reasonable: alpha=0.1 gives ~1.65 std devs (90% CI)
+    // Multiply by smaller factor for tighter intervals
+    const zScore = Math.sqrt(-2 * Math.log(alpha)); // ~1.64 for alpha=0.1
+    const margin = Math.sqrt(uncertainty) * zScore * 0.5; // Scale down for tighter bounds
 
     const lower = Math.max(0, probability - margin);
     const upper = Math.min(1, probability + margin);
