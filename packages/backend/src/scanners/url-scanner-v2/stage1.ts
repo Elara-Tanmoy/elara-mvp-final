@@ -16,6 +16,7 @@ import type {
   Stage1Predictions,
   VertexAIEndpoints
 } from './types';
+import { createURLRiskAnalyzer } from './ml-models.js';
 
 /**
  * Stage-1 Model Runner
@@ -52,8 +53,8 @@ export class Stage1ModelRunner {
       ]);
 
       console.log(`[Stage1] Model results:`);
-      console.log(`  - Lexical A (XGBoost): ${(lexicalA.probability * 100).toFixed(1)}% (conf: ${lexicalA.confidence.toFixed(2)})`);
-      console.log(`  - Lexical B (URLBERT): ${(lexicalB.probability * 100).toFixed(1)}% (conf: ${lexicalB.confidence.toFixed(2)})`);
+      console.log(`  - URL Lexical A (XGBoost): ${(lexicalA.probability * 100).toFixed(1)}% (conf: ${lexicalA.confidence.toFixed(2)})`);
+      console.log(`  - URL Lexical B (URLBERT): ${(lexicalB.probability * 100).toFixed(1)}% (conf: ${lexicalB.confidence.toFixed(2)})`);
       console.log(`  - Tabular Risk: ${(tabular.probability * 100).toFixed(1)}% (conf: ${tabular.confidence.toFixed(2)})`);
 
       // Combine predictions using weighted average
