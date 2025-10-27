@@ -286,8 +286,8 @@ export const testV2Config = async (req: Request, res: Response) => {
 
     // Run scan
     const result = await scanner.scan(url, {
-      skipScreenshot: true, // Fast test
-      skipWHOIS: true
+      skipScreenshot: false, // ENABLE screenshots for proper testing
+      skipWHOIS: false       // ENABLE WHOIS for domain age checks
     });
 
     res.json({
