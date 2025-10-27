@@ -179,7 +179,30 @@ export class URLScannerV2 {
         console.log(`[V2Scanner] Step 7: Stage-2 SKIPPED (confidence=${stage1Predictions.combined.confidence.toFixed(2)}, threshold=${this.config.stage2Threshold})`);
       }
 
-      // Step 8: Combiner + Calibration
+      // Step 7.5: Execute granular category checks (MOVED BEFORE COMBINER)
+      console.log(`[V2Scanner] Step 7.5: Running granular category checks...`);
+      const categoryStart = Date.now();
+      const categoryResults = executeCategories({
+        url: canonicalUrl,
+        evidence,
+        reachability: reachability.status,
+        tiData
+      });
+      const categoryLatency = Date.now() - categoryStart;
+      const categoryRiskFactor = categoryResults.totalPoints / categoryResults.totalPossible;
+      console.log(`[V2Scanner] Category checks complete: ${categoryResults.totalPoints}/${categoryResults.totalPossible} points (${(categoryRiskFactor * 100).toFixed(1)}% risk) (${categoryLatency}ms)`);
+      console.log(`[V2Scanner] Granular checks tracked: ${categoryResults.allChecks.length}`);
+
+      // Log failed checks for visibility
+      const failedChecks = categoryResults.allChecks.filter(c => c.status === 'FAIL');
+      if (failedChecks.length > 0) {
+        console.log(`[V2Scanner] FAILED CHECKS (${failedChecks.length}):`);
+        failedChecks.forEach(check => {
+          console.log(`  - [${check.category}] ${check.name}: ${check.description}`);
+        });
+      }
+
+      // Step 8: Combiner + Calibration (NOW INCLUDES CATEGORY RISK BOOST)
       console.log(`[V2Scanner] Step 8: Combiner + Calibration...`);
       const combinerStart = Date.now();
       const combiner = createCombiner(
@@ -190,7 +213,8 @@ export class URLScannerV2 {
         stage1Predictions,
         stage2Predictions,
         features,
-        reachability.status
+        reachability.status,
+        categoryResults // PASS CATEGORY RESULTS FOR RISK BOOST
       );
       latency.combiner = Date.now() - combinerStart;
       console.log(`[V2Scanner] Combined probability: ${(combinerResult.probability * 100).toFixed(1)}%, CI: [${(combinerResult.confidenceInterval.lower * 100).toFixed(1)}%, ${(combinerResult.confidenceInterval.upper * 100).toFixed(1)}%] (${latency.combiner}ms)`);
@@ -207,19 +231,6 @@ export class URLScannerV2 {
       );
       latency.policy = Date.now() - policyStart;
       console.log(`[V2Scanner] Policy decision: overridden=${policyResult.overridden}, action=${policyResult.action || 'none'} (${latency.policy}ms)`);
-
-      // Step 9.5: Execute granular category checks
-      console.log(`[V2Scanner] Step 9.5: Running granular category checks...`);
-      const categoryStart = Date.now();
-      const categoryResults = executeCategories({
-        url: canonicalUrl,
-        evidence,
-        reachability: reachability.status,
-        tiData
-      });
-      const categoryLatency = Date.now() - categoryStart;
-      console.log(`[V2Scanner] Category checks complete: ${categoryResults.totalPoints}/${categoryResults.totalPossible} points (${categoryLatency}ms)`);
-      console.log(`[V2Scanner] Granular checks tracked: ${categoryResults.allChecks.length}`);
 
       // Determine final risk level
       let riskLevel: RiskLevel;
@@ -262,6 +273,19 @@ export class URLScannerV2 {
 
         // Add granular checks
         granularChecks: categoryResults.allChecks,
+
+        // Add category metadata for transparency
+        categoryResults: {
+          totalPoints: categoryResults.totalPoints,
+          totalPossible: categoryResults.totalPossible,
+          riskFactor: categoryRiskFactor,
+          categories: categoryResults.results.map(r => ({
+            name: r.categoryName,
+            points: r.points,
+            maxPoints: r.maxPoints,
+            skipped: r.skipped
+          }))
+        },
 
         evidenceSummary: {
           domainAge: evidence.whois.domainAge,

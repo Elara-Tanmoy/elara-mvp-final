@@ -174,6 +174,14 @@ export async function processScanJob(jobData: ScanJobData): Promise<void> {
       policyOverride: result.policyOverride || null,
       stage1Results: result.stage1Results || null,
       stage2Results: result.stage2Results || null,
+      // V2 NEW FIELDS - CRITICAL FIX for category data
+      categoryResults: result.categoryResults || null,
+      granularChecks: result.granularChecks || null,
+      evidenceSummary: result.evidenceSummary || null,
+      reachability: result.reachability || null,
+      nonTechSummary: result.nonTechSummary || null,
+      techSummary: result.techSummary || null,
+      aiSummary: result.aiSummary || null,
       updatedAt: new Date()
     };
 

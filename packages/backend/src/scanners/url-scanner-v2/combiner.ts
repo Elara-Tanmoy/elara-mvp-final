@@ -49,7 +49,8 @@ export class PredictionCombiner {
     stage1: Stage1Predictions,
     stage2: Stage2Predictions | null,
     features: ExtractedFeatures,
-    branch: ReachabilityStatus
+    branch: ReachabilityStatus,
+    categoryResults?: { totalPoints: number; totalPossible: number }
   ): CombinerResult {
     const decisionGraph: DecisionNode[] = [];
     let step = 1;
@@ -81,8 +82,20 @@ export class PredictionCombiner {
     );
     step++;
 
+    // Step 3.5: Apply category-based risk boost (NEW - AGGRESSIVE PHISHING DETECTION)
+    let categoryAdjusted = branchCorrected;
+    if (categoryResults) {
+      categoryAdjusted = this.applyCategoryRiskBoost(
+        branchCorrected,
+        categoryResults,
+        decisionGraph,
+        step
+      );
+      step++;
+    }
+
     // Step 4: Calibrate with conformal prediction
-    const calibrated = this.calibrate(branchCorrected, branch);
+    const calibrated = this.calibrate(categoryAdjusted, branch);
 
     // Step 5: Calculate confidence interval
     const confidenceInterval = this.calculateConfidenceInterval(
@@ -93,7 +106,7 @@ export class PredictionCombiner {
     decisionGraph.push({
       step: step++,
       component: 'Conformal Calibration',
-      input: { uncalibrated: branchCorrected },
+      input: { uncalibrated: categoryAdjusted },
       output: { calibrated: calibrated.probability, ci: confidenceInterval },
       contribution: 0,
       timestamp: new Date()
@@ -224,6 +237,65 @@ export class PredictionCombiner {
     });
 
     return corrected;
+  }
+
+  /**
+   * Apply category-based risk boost (NEW - AGGRESSIVE PHISHING DETECTION)
+   *
+   * If category checks show high risk, boost the probability to ensure
+   * phishing sites are correctly classified as high-risk.
+   */
+  private applyCategoryRiskBoost(
+    probability: number,
+    categoryResults: { totalPoints: number; totalPossible: number },
+    decisionGraph: DecisionNode[],
+    step: number
+  ): number {
+    // Calculate risk factor from category points
+    // Higher points = more suspicious (points are penalties)
+    const categoryRiskFactor = categoryResults.totalPoints / categoryResults.totalPossible;
+
+    let adjustedProb = probability;
+    let boost = 0;
+
+    // Aggressive boosting for high-risk category scores
+    if (categoryRiskFactor > 0.8) {
+      // Very high category risk (>80% of possible points)
+      // Ensure probability is at least 90% (Grade E/F)
+      boost = Math.max(0, 0.90 - probability);
+      adjustedProb = Math.max(probability, 0.90);
+    } else if (categoryRiskFactor > 0.6) {
+      // High category risk (60-80% of possible points)
+      // Ensure probability is at least 75% (Grade D/E)
+      boost = Math.max(0, 0.75 - probability);
+      adjustedProb = Math.max(probability, 0.75);
+    } else if (categoryRiskFactor > 0.4) {
+      // Medium category risk (40-60% of possible points)
+      // Ensure probability is at least 50% (Grade C/D)
+      boost = Math.max(0, 0.50 - probability);
+      adjustedProb = Math.max(probability, 0.50);
+    } else if (categoryRiskFactor > 0.25) {
+      // Low-medium category risk (25-40% of possible points)
+      // Apply modest boost
+      boost = categoryRiskFactor * 0.15;
+      adjustedProb = Math.min(1, probability + boost);
+    }
+
+    decisionGraph.push({
+      step,
+      component: 'Category Risk Boost',
+      input: {
+        probability,
+        categoryRiskFactor: Math.round(categoryRiskFactor * 100) / 100,
+        categoryPoints: categoryResults.totalPoints,
+        categoryPossible: categoryResults.totalPossible
+      },
+      output: { adjustedProb, boost: Math.round(boost * 100) / 100 },
+      contribution: boost,
+      timestamp: new Date()
+    });
+
+    return adjustedProb;
   }
 
   /**

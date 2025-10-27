@@ -404,6 +404,19 @@ export interface EnhancedScanResult {
   // Granular checks for detailed UI display
   granularChecks?: GranularCheckResult[];
 
+  // Category results summary
+  categoryResults?: {
+    totalPoints: number;
+    totalPossible: number;
+    riskFactor: number;
+    categories: Array<{
+      name: string;
+      points: number;
+      maxPoints: number;
+      skipped: boolean;
+    }>;
+  };
+
   // Policy
   policyOverride?: PolicyResult;
 

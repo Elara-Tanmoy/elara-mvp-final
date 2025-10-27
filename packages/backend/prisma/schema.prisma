@@ -97,6 +97,12 @@ model ScanResult {
   stage2Results      Json? // V2 Stage-2 model results (if triggered)
   externalAPIs       Json? // V2 External API results (VirusTotal, ScamAdviser)
   aiSummary          Json? // V2 AI-generated summary from Gemini
+  categoryResults    Json? // V2 Category results with points and metadata
+  granularChecks     Json? // V2 Granular check results array
+  evidenceSummary    Json? // V2 Evidence summary
+  reachability       String? // V2 Reachability status (ONLINE/OFFLINE/etc)
+  nonTechSummary     Json? // V2 Non-technical summary
+  techSummary        Json? // V2 Technical summary
 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt

@@ -181,6 +181,31 @@ export function runDomainAnalysisCategory(ctx: CategoryExecutionContext): Catego
   });
   if (isSuspiciousRegistrar) points += 5;
 
+  // Check 2.5: Free hosting provider detection (CRITICAL FOR PHISHING)
+  const freeHostingProviders = [
+    '000webhostapp.com', 'freehostia.com', 'freehosting.com',
+    'infinityfree.net', 'byethost', 'weebly.com', 'wordpress.com',
+    'blogspot.com', 'github.io', 'netlify.app', 'vercel.app',
+    'wixsite.com', 'webnode.com', 'yolasite.com', 'webs.com'
+  ];
+
+  const isFreeHosting = freeHostingProviders.some(provider => hostname.includes(provider));
+
+  if (isFreeHosting) {
+    checks.push({
+      checkId: 'free_hosting_detection',
+      name: 'Free Hosting Provider',
+      category: 'reputation',
+      status: 'FAIL',
+      points: 0,
+      maxPoints: 10,
+      description: `Site hosted on free hosting provider (${hostname}) - common for phishing`,
+      evidence: { hostname, isFreeHosting: true, provider: freeHostingProviders.find(p => hostname.includes(p)) },
+      timestamp: new Date()
+    });
+    points += 30; // HIGH RISK PENALTY
+  }
+
   return {
     categoryName: 'Domain/WHOIS/TLD Analysis',
     points,
@@ -425,6 +450,51 @@ export function runPhishingPatternsCategory(ctx: CategoryExecutionContext): Cate
   const hasPasswordForm = ctx.evidence.dom.forms.some(f => f.inputs.some(i => i.type === 'password'));
   const formOriginMismatch = ctx.evidence.dom.forms.some(f => f.submitsToExternal);
 
+  // Check 5.1: Banking/financial keywords in URL (CRITICAL FOR PHISHING)
+  const urlLower = ctx.url.toLowerCase();
+  const bankingKeywords = [
+    'bank', 'cibc', 'td', 'rbc', 'scotia', 'bmo', 'tangerine',
+    'simplii', 'desjardins', 'paypal', 'chase', 'wellsfargo',
+    'login', 'signin', 'account', 'verify', 'update', 'secure',
+    'banking', 'onlinebanking', 'ebanking', 'netbanking'
+  ];
+
+  const foundBankingKeywords = bankingKeywords.filter(kw => urlLower.includes(kw));
+
+  if (foundBankingKeywords.length > 0) {
+    checks.push({
+      checkId: 'banking_keywords_in_url',
+      name: 'Banking Keywords in URL',
+      category: 'security',
+      status: 'FAIL',
+      points: 0,
+      maxPoints: 15,
+      description: `URL contains banking keywords: ${foundBankingKeywords.join(', ')} - strong phishing indicator`,
+      evidence: { keywords: foundBankingKeywords },
+      timestamp: new Date()
+    });
+    points += 25; // HIGH RISK PENALTY
+  }
+
+  // Check 5.2: HTTP on login page (NO TLS for sensitive forms)
+  const parsedUrl = new URL(ctx.url);
+  const isHTTP = parsedUrl.protocol === 'http:';
+  if (isHTTP && hasPasswordForm) {
+    checks.push({
+      checkId: 'http_login_form',
+      name: 'Unencrypted Login Form',
+      category: 'security',
+      status: 'FAIL',
+      points: 0,
+      maxPoints: 10,
+      description: 'Login form on HTTP (not HTTPS) - credentials transmitted in plaintext',
+      evidence: { protocol: parsedUrl.protocol, hasPasswordForm },
+      timestamp: new Date()
+    });
+    points += 40; // VERY HIGH RISK PENALTY
+  }
+
+  // Check 5.3: Login form with external submission
   checks.push({
     checkId: 'phishing_login_form',
     name: 'Suspicious Login Form Detection',
@@ -437,17 +507,6 @@ export function runPhishingPatternsCategory(ctx: CategoryExecutionContext): Cate
     timestamp: new Date()
   });
   if (hasPasswordForm && formOriginMismatch) points += 25;
-
-  checks.push({
-    checkId: 'phishing_brand_mismatch',
-    name: 'Brand Impersonation Check',
-    category: 'security',
-    status: 'INFO',
-    points: 25,
-    maxPoints: 25,
-    description: 'Brand analysis completed',
-    timestamp: new Date()
-  });
 
   return { categoryName: 'Phishing Patterns', points, maxPoints, checks, skipped: false };
 }
