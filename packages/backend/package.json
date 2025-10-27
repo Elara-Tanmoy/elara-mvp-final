@@ -15,6 +15,7 @@
         "deploy:chatbot": "node scripts/deploy-chatbot-db.js",
         "verify:chatbot": "node scripts/verify-chatbot-db.js",
         "test": "vitest",
+        "test:v2-phishing": "tsx src/scripts/test-v2-phishing.ts",
         "lint": "eslint src/**/*.ts"
     },
     "prisma": {
@@ -26,6 +27,7 @@
         "@google-cloud/bigquery": "^8.1.1",
         "@google-cloud/firestore": "^7.11.6",
         "@google-cloud/storage": "^7.17.2",
+        "@google-cloud/vertexai": "^1.7.0",
         "@google/generative-ai": "^0.24.1",
         "@prisma/client": "^5.22.0",
         "@types/socket.io": "^3.0.2",
