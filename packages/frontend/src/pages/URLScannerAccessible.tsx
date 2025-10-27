@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Loader2, HelpCircle, RefreshCw, Globe, Server, Brain, Eye, Search } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '../components/ui';
+import V2ScanResults from '../components/ScanResults/V2ScanResults';
 import { V2ResultsDisplay } from '../components/V2ResultsDisplay';
 import api from '../lib/api';
 
@@ -299,7 +300,7 @@ const URLScannerAccessible: React.FC = () => {
           <div className="space-y-6">
             {/* V2 Results Display - Alienware Dark Theme */}
             {(result as any).version === 'v2' ? (
-              <V2ResultsDisplay result={result as any} />
+              <V2ScanResults scan={result as any} />
             ) : (
               /* V1 Results Display */
               <>

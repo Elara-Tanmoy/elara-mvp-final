@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, AlertCircle, Loader2, Search, Zap, Sparkles, ChevronDown, ChevronUp, Brain, Target, Gauge } from 'lucide-react';
 import api from '../lib/api';
-import EnhancedScanResults from '../components/EnhancedScanResults';
+import V2ScanResults from '../components/ScanResults/V2ScanResults';
 
 const URLScanner: React.FC = () => {
   const [url, setUrl] = useState('');
@@ -93,7 +93,7 @@ const URLScanner: React.FC = () => {
           </svg>
           New V2 Scan
         </button>
-        <EnhancedScanResults scan={scan} />
+        <V2ScanResults scan={scan} />
       </div>
     );
   }
