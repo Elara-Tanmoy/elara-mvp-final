@@ -22,6 +22,7 @@ import { createStage1Runner, hasVertexAIConfigured } from './stage1';
 import { createStage2Runner, shouldSkipStage2 } from './stage2';
 import { createCombiner, getDefaultBranchThresholds } from './combiner';
 import { createPolicyEngine, probabilityToRiskLevel } from './policy';
+import { executeCategories } from './categories';
 // External API services removed - using only Vertex AI and internal checks
 import { geminiScanSummarizerService } from '../../services/ai/gemini-scan-summarizer.service.js';
 import { ReachabilityStatus, RiskLevel } from './types';
@@ -203,7 +204,18 @@ export class URLScannerV2 {
       latency.policy = Date.now() - policyStart;
       console.log(`[V2Scanner] Policy decision: overridden=${policyResult.overridden}, action=${policyResult.action || 'none'} (${latency.policy}ms)`);
 
-      // Step 9.5: External API checks removed - using only Vertex AI models and internal TI sources
+      // Step 9.5: Execute granular category checks
+      console.log(`[V2Scanner] Step 9.5: Running granular category checks...`);
+      const categoryStart = Date.now();
+      const categoryResults = executeCategories({
+        url: canonicalUrl,
+        evidence,
+        reachability: reachability.status,
+        tiData
+      });
+      const categoryLatency = Date.now() - categoryStart;
+      console.log(`[V2Scanner] Category checks complete: ${categoryResults.totalPoints}/${categoryResults.totalPossible} points (${categoryLatency}ms)`);
+      console.log(`[V2Scanner] Granular checks tracked: ${categoryResults.allChecks.length}`);
 
       // Determine final risk level
       let riskLevel: RiskLevel;
@@ -244,9 +256,12 @@ export class URLScannerV2 {
 
         policyOverride: policyResult.overridden ? policyResult : undefined,
 
+        // Add granular checks
+        granularChecks: categoryResults.allChecks,
+
         evidenceSummary: {
           domainAge: evidence.whois.domainAge,
-          tlsValid: evidence.tls.valid,
+          tlsValid: evidence.tls?.valid || false,
           tiHits: tiData.totalHits,
           hasLoginForm: evidence.dom.forms.some(f =>
             f.inputs.some(input => input.type === 'password')

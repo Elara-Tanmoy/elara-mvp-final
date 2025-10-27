@@ -1,0 +1,298 @@
+Additional Step — Reachability & Health Probe (runs before any live-page checks)
+Run these in parallel with tight timeouts (each ≤2s; total budget ≤3s):
+1.	DNS Resolve
+•	A/AAAA/CNAME lookup for the host.
+•	Outcomes: RESOLVED, NXDOMAIN, SERVFAIL, TIMEOUT.
+1.	TCP Handshake
+•	Attempt TLS to :443 (fallback :80 TCP if 443 fails).
+•	Outcomes: CONNECTED, REFUSED, FILTERED/TIMEOUT.
+1.	HTTP Lightweight Probe
+•	Prefer HEAD to https://host/ (fallback GET with Accept: text/html;q=0.8).
+•	Follow up to 3 redirects, keep a running list of hops (domains + schemes).
+•	Outcomes:
+•	200–299: OK
+•	3xx: FOLLOWED (record final)
+•	403/401: BLOCKED (geo/WAF)
+•	404/410: GONE
+•	429: RATE_LIMITED
+•	5xx: SERVER_ERROR
+•	No response: TIMEOUT
+1.	Parking / Sinkhole / WAF detection
+•	Heuristics: common parking phrases, registrar banners, ICANN notices, safe-browsing interstitials, Cloudflare/Incapsula/Blockpage challenges.
+Classify reachability_status (single label):
+•	ONLINE: DNS RESOLVED AND TCP CONNECTED AND HTTP in {200–599, 3xx chain resolved (≤3 steps), 403/401 (blocked)}.
+•	OFFLINE: DNS NXDOMAIN OR TCP TIMEOUT/FILTERED/REFUSED OR HTTP TIMEOUT.
+•	PARKED: ONLINE + parking heuristics matched.
+•	SINKHOLE: ONLINE + known sinkhole indicators (registrar takedown, ISP blockpage).
+•	WAF_CHALLENGE: ONLINE + interstitial (JS challenge/bot check).
+•	REDIRECT_LOOP: >3 redirects or loop detected.
+Record: reachability_status, http_chain[], skipped_checks[], notes[].
+ Full URL Scan Flow (with explicit reachability step)  1) INPUT & VALIDATION
+   - Normalize URL → canonical host
+   - Hash (cache key)
+
+2) CACHE / HISTORY
+   - If cached within TTL → return
+   - If “tombstone” (recent TI critical) → return F (explain)
+
+3) THREAT-INTEL PRE-CHECK (fast, 2s parallel)
+   - GSB (tier-1), VT domain rep, PhishTank, URLhaus, AbuseIPDB
+   - If ANY tier-1 = MALICIOUS → STOP → F (skip live checks)
+   - Else → continue
+
+4) REACHABILITY & HEALTH (NEW — explicit)
+   - DNS / TCP / HTTP lightweight probe
+   - Classify: ONLINE | OFFLINE | PARKED | SINKHOLE | WAF_CHALLENGE | REDIRECT_LOOP
+
+5) BRANCH BY REACHABILITY
+   5A) OFFLINE / SINKHOLE / REDIRECT_LOOP
+       - Run ONLY offline-safe checks:
+         • Threat Intel (already have)
+         • Domain/WHOIS/TLD (40)
+         • Brand Lexical (20, lexical only)
+         • Trust Graph / passive DNS (30)
+       - SKIP: SSL handshake, Content/JS, Headers, Privacy/Legal, Visual/Logo
+       - Apply guardrails (e.g., 2+ unresolved signals ⇒ min C)
+       - Compute raw (out of 570; only scored caps apply)
+       - Verdict & return
+
+   5B) PARKED
+       - Treat as “ONLINE (parked)”
+       - Score Domain/WHOIS/TLD (age/privacy), Trust Graph, Brand Lexical
+       - Content/JS: limited (parking templates shouldn’t reduce risk)
+       - Visual/Logo: skip (irrelevant on parking pages)
+       - Verdict & return
+
+   5C) WAF_CHALLENGE / BLOCKED (403/401/JS challenge)
+       - Do NOT bypass challenges
+       - Treat similar to OFFLINE for live checks
+       - Proceed with offline-safe + evidence of blocking
+       - Verdict & return
+
+   5D) ONLINE (normal)
+       - Run full pipeline:
+         • Threat Intel (already)
+         • Domain/WHOIS/TLD (40)
+         • SSL/TLS handshake & cert chain (45)
+         • Content Analysis (40)
+         • Phishing Patterns (50)
+         • Malware Detection signals (45)
+         • Behavioral / JS (25)
+         • Social Engineering (30)
+         • Financial Fraud (25)
+         • Identity Theft (20)
+         • Technical Exploits (15)
+         • Brand Impersonation (20) [lexical + visual/logo pHash]
+         • Trust Graph / Network (30)
+         • Data Protection & Privacy (50)
+         • Email/DMARC (25) — **ONLY if MX exists or sending observed**
+         • Security Headers (25)
+       - Sum raw points (no normalization)
+       - Guardrails (e.g., brand+young domain)
+       - Verdict & return   _______________________________________________  ELARA PIPELINE (5) — “BRANCH BY REACHABILITY”
+
+Overview
+After Elara finishes:
+1.	Threat Intelligence Pre-Check (TI Gate)
+2.	Reachability & Health Probe (DNS + TCP + HTTP)
+…it classifies every domain into one of five reachability states:
+State	Meaning	Next Action
+ONLINE	Website is resolvable, connects, and returns HTTP response	Run Full Analysis Pipeline
+OFFLINE	No DNS/TCP/HTTP response; site unreachable or domain dropped	Run Offline-Safe Analysis
+PARKED	Site online but serving registrar or placeholder content	Run Parking-Aware Checks
+WAF_CHALLENGE	Site blocks automated access (Cloudflare/Incapsula)	Run Limited Checks + Passive Intelligence
+SINKHOLE	Site redirected to known law enforcement / registrar sinkhole	Run Tombstone & Passive Checks Only
+🧭 MASTER FLOW
+
+        ┌───────────────┐
+        │ Reachability  │
+        │ Classification│
+        └───────┬───────┘
+                │
+ ┌──────────────┼────────────────┬───────────────────┬────────────────┬───────────────┐
+ ▼              ▼                ▼                   ▼                ▼
+ONLINE      OFFLINE          PARKED            WAF_CHALLENGE       SINKHOLE
+Full scan   Offline-safe     Parking-aware     Limited scan        Passive only
+
+(5A) ONLINE — Full Active Pipeline
+✅ The domain is reachable, content accessible, SSL handshake successful.
+Modules Executed (with point caps)
+Category	Max Points	Sub-Checks
+1. Threat Intelligence	50	Confirm results from TI feeds again (for logging consistency)
+2. Domain / WHOIS / TLD Analysis	40	WHOIS age, registrar reputation, privacy shield, TLD risk, registrar country
+3. SSL / TLS Security	45	Certificate validity, CA trust, expiry date, revocation (OCSP), self-signed detection
+4. Content Analysis	40	Keyword flags (“verify”, “urgent”, “confirm”), defacement, embedded links, frame redirection
+5. Phishing Patterns	50	Fake login form, password fields outside HTTPS, clone templates, domain-brand mismatch
+6. Malware Detection	45	External scanners (VT file scan, URLhaus match), JS obfuscation, iframe load of malicious scripts
+7. Behavioral / JavaScript Analysis	25	Redirect chains, eval()/obfuscation, event hooks for credential theft
+8. Social Engineering	30	Persuasive text, urgency, authority impersonation (“support”, “security notice”)
+9. Financial Fraud	25	Crypto wallet presence, wire transfer instructions, payment gateway impersonation
+10. Identity Theft	20	Fake KYC upload forms, data-collection pages for IDs/passports
+11. Technical Exploits	15	Browser exploit patterns, suspicious JS libraries, outdated frameworks
+12. Brand Impersonation	20	Lexical domain similarity (e.g., “paypa1.com”), logo visual match via Vision API, favicon hash
+13. Trust Graph / Network	30	ASN reputation, hosting provider (bulletproof/known malware ASNs), IP geolocation
+14. Data Protection & Privacy	50	Presence/absence of privacy policy, cookie banner, GDPR text, real contact info
+15. Email Security / DMARC	25	MX check, SPF/DMARC/DKIM policies, open relay tests (only if MX exists)
+16. Legal & Compliance	35	Company registration info, copyright, jurisdiction text
+17. Security Headers	25	HSTS, CSP, X-Frame-Options, Referrer-Policy, Feature-Policy
+Guardrails & Behavior
+•	If 3+ critical categories triggered → apply 1.2× correlation multiplier.
+•	If single isolated risk → apply 0.7× reduction (to avoid FP).
+•	If content is in login form but domain ≠ brand → instant phishing risk (≥C).
+•	If all categories pass → safe (A/B).
+
+(5B) OFFLINE — Offline-Safe Pipeline
+⚠️ Domain unreachable or server not responding.
+Modules Executed
+Category	Max Points	Sub-Checks
+1. Threat Intelligence	50	TI sources history (cache + last 90 days)
+2. Domain / WHOIS / TLD	40	Creation date, expiry, registrar, NS, TLD reputation
+3. Brand Lexical Analysis	20	Token-based detection (“paypal”, “rbc”, “appleid”, etc.)
+4. Trust Graph / Passive DNS	30	ASN reputation, historical resolution (passive DNS), previously seen IPs
+5. Tombstone Lookup	—	If exists → immediate F, skip rest
+Skipped:	—	SSL, Content, Behavioral, JS, Headers, Privacy, Legal, Visual, etc.
+Guardrails
+•	If ≥2 of {NXDOMAIN, WHOIS missing, young domain} → minimum C.
+•	If tombstone (previous threat) → F directly.
+•	If brand lexical + young domain → escalate to D.
+
+(5C) PARKED — Registrar or placeholder content
+⚠️ Domain is online but shows “Buy this domain”, “Under construction”, or registrar ad page.
+Modules Executed
+Category	Max Points	Sub-Checks
+1. Domain / WHOIS / TLD	40	Check if same registrar as known parking services
+2. Brand Lexical	20	If brand term present but domain parked → likely spoof preparation
+3. Trust Graph	30	Passive DNS / previous hosting records
+4. Threat Intelligence	50	Confirm not currently flagged (keep for record)
+Guardrails
+•	If brand lexical term present → mark as “Potential impersonation (D)”.
+•	If fully generic parked domain (no brand) → “Low risk (B)” but monitor.
+
+(5D) WAF_CHALLENGE — Blocks automated requests
+⚠️ Cloudflare / Akamai / Incapsula / DDoS-Guard challenge or CAPTCHA detected.
+Modules Executed
+Category	Max Points	Sub-Checks
+1. Domain / WHOIS / TLD	40	Normal checks
+2. Brand Lexical	20	Domain tokens
+3. Trust Graph / Passive DNS	30	Reputation & hosting
+4. Threat Intelligence	50	Query feeds for cached results
+Skipped:	—	SSL handshake, content parsing, behavioral, JS, headers
+Guardrails
+•	If WAF + brand lexical match → mark C (can’t verify safely).
+•	If WAF + historical TI hit → D/F.
+•	If known legitimate (e.g., major bank) → A/B.
+
+(5E) SINKHOLE — Redirected to registrar / law enforcement
+⚠️ Domain taken down and pointed to enforcement sinkhole.
+Modules Executed
+Category	Max Points	Sub-Checks
+1. Threat Intelligence	50	Confirmed match (tombstone)
+2. Domain / WHOIS / TLD	40	Verify takedown registrar / sinkhole IP
+3. Brand Lexical	20	Domain tokens
+4. Trust Graph	30	Passive DNS, IP owner check
+5. Tombstone Handling	—	Create/refresh tombstone record
+Guardrails
+•	Automatically mark F (Confirmed Threat) — since enforcement sinkhole = confirmed malicious history.
+
+Scoring & Verdict Rules (Applies to All)
+Band (Raw out of 570)	Grade	Meaning
+0–120	A	Safe
+121–220	B	Low Risk
+221–340	C	Suspicious
+341–460	D	Likely Fraudulent
+461–570	F	Confirmed Threat
+Special Enforcements:
+•	TI Tombstone active: auto F.
+•	Historical TI hit (≤90d): min D.
+•	Brand + Young Domain + Risky TLD: min C.
+•	Unreachable (NXDOMAIN) + WHOIS hidden: min C.
+•	Generic parked (no brand): B, but track for reactivation.
+
+Integration Summary
+Stage	Action
+1. TI Gate	If malicious → stop & mark F
+2. Reachability Probe	Determine ONLINE / OFFLINE / PARKED / WAF / SINKHOLE
+3. Branch Logic (Pipeline 5)	Select relevant module set
+4. Scorer (570 pts)	Add results from executed modules
+5. Guardrails & Verdict	Apply forced floors (C/D/F) based on risk
+6. Output JSON	Include reachability_status, skipped_checks[], score_details{}
+ Example — Real Phishing Case
+Domain: auth-royalbankrbc-secure.com Reachability: OFFLINE (NXDOMAIN) Tombstone: Found (GSB + PhishTank) Brand Lexical: “rbc”, “royalbank”, “secure” (banking terms) Age: 2 weeks TLD: .com Hosting: Passive DNS → Russia AS Result:
+•	ThreatIntel: 50/50
+•	Domain: 35/40
+•	Brand: 18/20
+•	TrustGraph: 20/30
+•	Total: 123/140 run (out of 570 scale)
+•	Guardrail: Tombstone active → Auto F (Critical Threat)
+•	Verdict: “This website was previously confirmed as a phishing page impersonating RBC Bank. It has since been taken down. Avoid completely.” 
+
+_____________________________________________________________  Contextual Scoring Logic
+Run-time applicability
+Before scoring each category, evaluate a run-condition:
+Category	Run Condition
+Threat Intelligence	Always
+Domain/WHOIS/TLD	Always
+SSL/TLS	If TCP:443 reachable
+Content / Behavior / JS	If HTML successfully fetched
+Social Engineering	If HTML + text available
+Financial Fraud	If keywords like “payment”, “crypto”, “wallet”, “transfer” present
+Identity Theft	If form inputs or file-upload fields detected
+Brand Impersonation (Visual)	If screenshot captured successfully
+Brand Impersonation (Lexical)	Always (domain-based)
+Legal/Privacy	If content fetched
+Email/DMARC	If MX exists
+Trust Graph	Always
+Data Protection	If content fetched
+Security Headers	If HTTP 200/OK response
+✅ When condition not met:
+•	Skip category entirely (don’t add 0 or pass).
+•	Document it in the output:    "skipped_checks": ["social_engineering","financial_fraud","identity_theft"]
+•	  
+
+How to Handle Scoring Fairly
+a. Keep master scale static (e.g., 570)
+That’s your potential maximum, not per-scan denominator.
+b. Don’t renormalize
+You still display results on the global 570 scale. If only 400 points worth of categories ran, you simply show:
+
+score: 330 / 570
+active_categories: 12 of 17
+skipped: 5
+c. Guardrails fill the gap
+If critical context is missing (e.g., content unreachable), guardrails take over — e.g.,
+“Content not accessible, using domain intelligence only. Final verdict: Suspicious (C).”
+This way, the verdict remains conservative without fabricating sub-scores.
+
+Practical Implementation — “Applicability Matrix”
+| Category | Online | Offline | Parked | WAF | Sinkhole | |-----------|---------|----------|---------|-----------| | Threat Intel | ✅ | ✅ | ✅ | ✅ | ✅ | | Domain/WHOIS/TLD | ✅ | ✅ | ✅ | ✅ | ✅ | | SSL/TLS | ✅ | ❌ | ⚠️ (limited) | ❌ | ❌ | | Content/Behavior | ✅ | ❌ | ⚠️ | ❌ | ❌ | | Social Engineering | ✅ | ❌ | ❌ | ❌ | ❌ | | Financial Fraud | ✅ | ❌ | ❌ | ❌ | ❌ | | Identity Theft | ✅ | ❌ | ❌ | ❌ | ❌ | | Brand (Lexical) | ✅ | ✅ | ✅ | ✅ | ✅ | | Brand (Visual) | ✅ | ❌ | ❌ | ❌ | ❌ | | Trust Graph | ✅ | ✅ | ✅ | ✅ | ✅ | | Legal/Privacy | ✅ | ❌ | ⚠️ | ❌ | ❌ | | Email/DMARC | ⚙️ (if MX) | ⚙️ | ⚙️ | ⚙️ | ⚙️ | | Data Protection | ✅ | ❌ | ⚠️ | ❌ | ❌ | | Security Headers | ✅ | ❌ | ❌ | ❌ | ❌ |
+(✅=Always, ⚙️=Conditional, ⚠️=Limited, ❌=Skip)
+
+How the Scorer Should React
+When a module doesn’t run:
+1.	Remove it from scoring sum.
+2.	Add an annotation like:    "social_engineering": {
+3.	    "status": "skipped",
+4.	    "reason": "No content available for analysis"
+5.	}
+6.	  
+7.	Don’t alter the correlation multiplier (since fewer categories exist).
+
+Verdict Interpretation for End Users
+Situation	Visible Explanation
+Website unreachable	“Site offline — certain checks couldn’t be performed.”
+Page blocks analysis (WAF)	“Site restricts scanning — partial analysis only.”
+Content accessible	“Full content and behavioural analysis performed.”
+This maintains transparency and trust.
+
+Benefit Summary
+Dimension	Dynamic Scoring	Forced Scoring
+Accuracy	✅ Context-aware	❌ Noisy & misleading
+Auditability	✅ Evidence-based	❌ Fails compliance checks
+Performance	✅ Skip heavy modules when not needed	❌ Always expensive
+Explainability	✅ Clear “why skipped”	❌ Users confused by fake zeros
+Extendability	✅ Add new categories freely	❌ Must rebalance constantly
+ Final Rule for Elara 
+Score only what you can observe. Skip what doesn’t apply. Guardrail when uncertain.
+
+
+

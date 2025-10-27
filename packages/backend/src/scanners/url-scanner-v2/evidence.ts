@@ -17,8 +17,8 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import * as https from 'https';
 import dns from 'dns/promises';
-import whois from 'whois-json';
-import { createWorker } from 'tesseract.js';
+// import whois from 'whois-json'; // Not installed - using alternative
+// import { createWorker } from 'tesseract.js'; // Not installed - disabled for now
 import type {
   EvidenceData,
   FormEvidence,
@@ -337,24 +337,47 @@ export class EvidenceCollector {
    */
   private async collectWHOIS(hostname: string): Promise<WHOISEvidence> {
     try {
-      const data = await whois(hostname);
+      // Use RDAP API (modern replacement for WHOIS)
+      const tld = hostname.split('.').pop() || '';
+      const rdapUrl = `https://rdap.org/domain/${hostname}`;
 
-      const createdDate = data.createdDate ? new Date(data.createdDate) : new Date();
-      const updatedDate = data.updatedDate ? new Date(data.updatedDate) : new Date();
-      const expiryDate = data.expiryDate ? new Date(data.expiryDate) : new Date();
+      const response = await axios.get(rdapUrl, {
+        timeout: 5000,
+        headers: { 'Accept': 'application/json' }
+      });
+
+      const data = response.data;
+      const events = data.events || [];
+
+      const registrationEvent = events.find((e: any) => e.eventAction === 'registration');
+      const lastChangedEvent = events.find((e: any) => e.eventAction === 'last changed');
+      const expirationEvent = events.find((e: any) => e.eventAction === 'expiration');
+
+      const createdDate = registrationEvent ? new Date(registrationEvent.eventDate) : new Date();
+      const updatedDate = lastChangedEvent ? new Date(lastChangedEvent.eventDate) : new Date();
+      const expiryDate = expirationEvent ? new Date(expirationEvent.eventDate) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 
       const domainAge = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
 
+      const entities = data.entities || [];
+      const registrarEntity = entities.find((e: any) => e.roles?.includes('registrar'));
+      const registrantEntity = entities.find((e: any) => e.roles?.includes('registrant'));
+
+      const isPrivacyProtected = registrantEntity?.vcardArray?.[1]?.some((entry: any) =>
+        entry[0] === 'fn' && (entry[3]?.includes('REDACTED') || entry[3]?.includes('Privacy') || entry[3]?.includes('Proxy'))
+      ) || false;
+
       return {
         domainAge,
-        registrar: data.registrar || 'Unknown',
+        registrar: registrarEntity?.vcardArray?.[1]?.find((e: any) => e[0] === 'fn')?.[3] || 'Unknown',
         createdDate,
         updatedDate,
         expiryDate,
-        privacyProtected: data.registrantName?.includes('REDACTED') || data.registrantName?.includes('Privacy'),
-        registrantCountry: data.registrantCountry
+        privacyProtected: isPrivacyProtected,
+        registrantCountry: registrantEntity?.vcardArray?.[1]?.find((e: any) => e[0] === 'adr')?.[3]?.countryName
       };
     } catch (error) {
+      console.warn(`[Evidence] WHOIS lookup failed for ${hostname}:`, (error as Error).message);
       return this.getEmptyWHOIS();
     }
   }
