@@ -28,11 +28,23 @@ RUN pnpm build
 # Remove dev dependencies
 RUN pnpm prune --prod
 
-# Stage 2: Production stage
+# Stage 2: Production stage with Chromium for screenshots
 FROM node:18-alpine AS production
 
-# Install security updates and dumb-init
-RUN apk update && apk upgrade && apk add --no-cache dumb-init
+# Install Chromium, security updates, and dumb-init
+RUN apk update && apk upgrade && \
+    apk add --no-cache \
+    dumb-init \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+# Set Puppeteer to use installed Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
