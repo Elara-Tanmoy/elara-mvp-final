@@ -74,11 +74,10 @@ export class ScreenshotCaptureService {
   async initBrowser(): Promise<void> {
     if (!this.browser) {
       try {
-        this.browser = await puppeteer.launch({
-          const executablePath = this.findChromiumPath();
+        const executablePath = this.findChromiumPath();
 
-          this.browser = await puppeteer.launch({
-            executablePath,
+        this.browser = await puppeteer.launch({
+          executablePath,
           args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',

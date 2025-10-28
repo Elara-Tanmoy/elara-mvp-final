@@ -29,6 +29,8 @@ export interface CategoryResult {
   categoryName: string;
   points: number;
   maxPoints: number;
+  earnedPoints: number;     // Points checks earned (inverse of penalty)
+  possiblePoints: number;   // Max points checks can earn
   checks: GranularCheckResult[];
   skipped: boolean;
   skipReason?: string;
@@ -232,32 +234,7 @@ export function runDomainAnalysisCategory(ctx: CategoryExecutionContext): Catego
   });
   if (isSuspiciousRegistrar) points += 5;
 
-  // Check 2.5: Free hosting provider detection (CRITICAL FOR PHISHING)
-  const freeHostingProviders = [
-    '000webhostapp.com', 'freehostia.com', 'freehosting.com',
-    'infinityfree.net', 'byethost', 'weebly.com', 'wordpress.com',
-    'blogspot.com', 'github.io', 'netlify.app', 'vercel.app',
-    'wixsite.com', 'webnode.com', 'yolasite.com', 'webs.com'
-  ];
-
-  const isFreeHosting = freeHostingProviders.some(provider => hostname.includes(provider));
-
-  if (isFreeHosting) {
-    checks.push({
-      checkId: 'free_hosting_detection',
-      name: 'Free Hosting Provider',
-      category: 'reputation',
-      status: 'FAIL',
-      points: 0,
-      maxPoints: 10,
-      description: `Site hosted on free hosting provider (${hostname}) - common for phishing`,
-      evidence: { hostname, isFreeHosting: true, provider: freeHostingProviders.find(p => hostname.includes(p)) },
-      timestamp: new Date()
-    });
-    points += 30; // HIGH RISK PENALTY
-  }
-
-  return {
+return {
     categoryName: 'Domain/WHOIS/TLD Analysis',
     points,
     maxPoints,
@@ -267,19 +244,46 @@ export function runDomainAnalysisCategory(ctx: CategoryExecutionContext): Catego
 }
 
 /**
- * Category 2.5: URL Pattern Analysis (30 points)
+ * Category 2.5: URL Pattern Analysis (65 points - INCREASED from 30)
  * CRITICAL: Runs for ALL reachability states (OFFLINE phishing detection)
  * Checks URL structure for phishing indicators WITHOUT needing page content
  */
 export function runURLPatternAnalysisCategory(ctx: CategoryExecutionContext): CategoryResult {
   const checks: GranularCheckResult[] = [];
-  let points = 0;
-  const maxPoints = 30;
+  let categoryPoints = 0;
+  const maxPoints = 65;
 
   const urlLower = ctx.url.toLowerCase();
   const parsedUrl = new URL(ctx.url);
   const hostname = parsedUrl.hostname;
   const path = parsedUrl.pathname;
+
+  console.log(`[URL Pattern Analysis] Analyzing URL: ${ctx.url}`);
+  console.log(`[URL Pattern Analysis] Hostname: ${hostname}, Path: ${path}`);
+
+  // NEW CHECK: Subdomain TLD Impersonation (35 pts penalty)
+  // Detects: paypal-com.example.com, wwnorton-com.vercel.app, microsoft-secure.phish.net
+  const subdomainParts = hostname.split('.');
+  if (subdomainParts.length > 2) {
+    const subdomain = subdomainParts[0];
+
+    // Pattern: Contains "-com", "-net", "-org", "-co" (mimicking TLD)
+    if (/-com$|-net$|-org$|-co$/.test(subdomain)) {
+      console.log(`[URL Pattern Analysis] CRITICAL: Subdomain TLD impersonation detected: "${subdomain}"`);
+      checks.push({
+        checkId: 'subdomain_tld_impersonation',
+        name: 'Subdomain TLD Impersonation',
+        category: 'security',
+        status: 'FAIL',
+        points: 0,
+        maxPoints: 35,
+        description: `Suspicious subdomain "${subdomain}" mimicking TLD - common phishing tactic`,
+        evidence: { subdomain, hostname, pattern: 'TLD in subdomain' },
+        timestamp: new Date()
+      });
+      categoryPoints += 35;
+    }
+  }
 
   // Check 2.5.1: Brand impersonation detection (CRITICAL FOR PHISHING)
   // Detects when brand keywords appear in URL but NOT on the official domain
@@ -318,6 +322,9 @@ export function runURLPatternAnalysisCategory(ctx: CategoryExecutionContext): Ca
     { keyword: 'facebook', official: ['facebook.com', 'fb.com', 'meta.com'] },
     { keyword: 'netflix', official: ['netflix.com'] },
     { keyword: 'spotify', official: ['spotify.com'] },
+    // Security/Antivirus (ADD NORTON!)
+    { keyword: 'norton', official: ['norton.com', 'nortonlifelock.com'] },
+    { keyword: 'mcafee', official: ['mcafee.com'] },
     // Crypto
     { keyword: 'coinbase', official: ['coinbase.com'] },
     { keyword: 'binance', official: ['binance.com'] }
@@ -353,7 +360,7 @@ export function runURLPatternAnalysisCategory(ctx: CategoryExecutionContext): Ca
       evidence: { impersonatedBrands, hostname },
       timestamp: new Date()
     });
-    points += 30; // VERY HIGH RISK PENALTY for brand impersonation
+    categoryPoints += 30; // VERY HIGH RISK PENALTY for brand impersonation
   } else {
     checks.push({
       checkId: 'brand_impersonation',
@@ -366,6 +373,36 @@ export function runURLPatternAnalysisCategory(ctx: CategoryExecutionContext): Ca
       evidence: { impersonatedBrands: [], hostname },
       timestamp: new Date()
     });
+  }
+
+  // NEW CHECK: Brand Keywords in Path (40 pts penalty)
+  // Detects: /norton-02/error.html, /paypal/login, /amazon-verify
+  const pathBrands = ['paypal', 'amazon', 'microsoft', 'apple', 'google', 'facebook',
+                'netflix', 'norton', 'mcafee', 'chase', 'bankofamerica', 'wellsfargo',
+                'ebay', 'instagram', 'linkedin', 'twitter', 'dropbox', 'adobe'];
+
+  const pathLower = path.toLowerCase();
+  const brandInPath = pathBrands.find(brand => pathLower.includes(brand));
+
+  if (brandInPath) {
+    // Check if brand is NOT in the actual domain
+    const domainHasBrand = hostnameLower.includes(brandInPath);
+
+    if (!domainHasBrand) {
+      console.log(`[URL Pattern Analysis] CRITICAL: Brand "${brandInPath}" in path but NOT in domain`);
+      checks.push({
+        checkId: 'brand_in_path_not_domain',
+        name: 'Brand in Path but Not Domain',
+        category: 'security',
+        status: 'FAIL',
+        points: 0,
+        maxPoints: 40,
+        description: `Path contains "${brandInPath}" but domain doesn't - likely phishing attempt`,
+        evidence: { brandInPath, path, hostname, domainHasBrand: false },
+        timestamp: new Date()
+      });
+      categoryPoints += 40;
+    }
   }
 
   // Check 2.5.2: Suspicious URL patterns (homoglyphs, excessive subdomain levels)
@@ -390,7 +427,7 @@ export function runURLPatternAnalysisCategory(ctx: CategoryExecutionContext): Ca
       evidence: { patternCount: foundPatterns.length },
       timestamp: new Date()
     });
-    points += 10;
+    categoryPoints += 10;
   } else {
     checks.push({
       checkId: 'suspicious_url_pattern',
@@ -403,6 +440,28 @@ export function runURLPatternAnalysisCategory(ctx: CategoryExecutionContext): Ca
       evidence: { patternCount: 0 },
       timestamp: new Date()
     });
+  }
+
+  // NEW CHECK: Phishing Path Keywords (15 pts max, 5 pts penalty)
+  const phishingPaths = ['/login', '/verify', '/secure', '/account', '/update',
+                         '/confirm', '/suspended', '/locked', '/error', '/support'];
+
+  const hasPhishingPath = phishingPaths.some(p => pathLower.includes(p));
+  if (hasPhishingPath) {
+    const matchedPaths = phishingPaths.filter(p => pathLower.includes(p));
+    console.log(`[URL Pattern Analysis] WARNING: Phishing path keywords detected: ${matchedPaths.join(', ')}`);
+    checks.push({
+      checkId: 'phishing_path_keywords',
+      name: 'Phishing Path Keywords',
+      category: 'security',
+      status: 'WARN',
+      points: 10,
+      maxPoints: 15,
+      description: `URL path contains suspicious keywords: ${matchedPaths.join(', ')}`,
+      evidence: { matchedPaths, path },
+      timestamp: new Date()
+    });
+    categoryPoints += 5;
   }
 
   // Check 2.5.3: Path contains login/signin/verify (phishing target pages)
@@ -421,7 +480,7 @@ export function runURLPatternAnalysisCategory(ctx: CategoryExecutionContext): Ca
       evidence: { path: path },
       timestamp: new Date()
     });
-    points += 5;
+    categoryPoints += 5;
   } else {
     checks.push({
       checkId: 'sensitive_path_detected',
@@ -436,14 +495,21 @@ export function runURLPatternAnalysisCategory(ctx: CategoryExecutionContext): Ca
     });
   }
 
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
   return {
     categoryName: 'URL Pattern Analysis',
-    points,
+    points: categoryPoints,
     maxPoints,
+    earnedPoints,
+    possiblePoints,
     checks,
     skipped: false
   };
 }
+
 
 /**
  * Category 3: SSL/TLS Security (45 points)
@@ -673,7 +739,12 @@ export function runPhishingPatternsCategory(ctx: CategoryExecutionContext): Cate
   const maxPoints = 50;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    return { categoryName: 'Phishing Patterns', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable or no content' };
+    
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return { categoryName: 'Phishing Patterns', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable or no content' };
   }
 
   let points = 0;
@@ -749,7 +820,12 @@ export function runBehavioralCategory(ctx: CategoryExecutionContext): CategoryRe
   const maxPoints = 25;
 
   if (ctx.reachability !== 'ONLINE') {
-    return { categoryName: 'Behavioral Analysis', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return { categoryName: 'Behavioral Analysis', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
   }
 
   let points = 0;
@@ -790,7 +866,7 @@ export function runBehavioralCategory(ctx: CategoryExecutionContext): CategoryRe
  */
 export function runTrustGraphCategory(ctx: CategoryExecutionContext): CategoryResult {
   const checks: GranularCheckResult[] = [];
-  const maxPoints = 30;
+  const maxPoints = 65;
   let points = 0;
 
   const asn = ctx.evidence.asn;
@@ -835,7 +911,61 @@ export function runTrustGraphCategory(ctx: CategoryExecutionContext): CategoryRe
   });
   if (hasASNData && asn.isHosting) points += 8;
 
-  return { categoryName: 'Trust Graph & Network', points, maxPoints, checks, skipped: false };
+  
+  // ENHANCED: Free Hosting Provider Detection (CRITICAL FOR PHISHING)
+  const hostname = new URL(ctx.url).hostname;
+  const freeHostingProviders = [
+    '000webhostapp.com', 'freehostia.com', 'freehosting.com',
+    'infinityfree.net', 'byethost', 'weebly.com', 'wordpress.com',
+    'blogspot.com', 'github.io', 'netlify.app', 'vercel.app',
+    'wixsite.com', 'webnode.com', 'yolasite.com', 'webs.com'
+  ];
+
+  const isFreeHosting = freeHostingProviders.some(provider => hostname.includes(provider));
+
+  if (isFreeHosting) {
+    const brandKeywords = ['paypal', 'amazon', 'microsoft', 'apple', 'google',
+                           'norton', 'mcafee', 'chase', 'bank', 'cibc', 'td', 'rbc'];
+    const urlLower = ctx.url.toLowerCase();
+    const hasBrandKeyword = brandKeywords.some(brand => urlLower.includes(brand));
+
+    if (hasBrandKeyword) {
+      const matchedBrands = brandKeywords.filter(brand => urlLower.includes(brand));
+      console.log(`[Trust Graph] CRITICAL: Free hosting (${hostname}) with brand impersonation: ${matchedBrands.join(', ')}`);
+      checks.push({
+        checkId: 'free_hosting_with_brand',
+        name: 'Free Hosting with Brand Impersonation',
+        category: 'reputation',
+        status: 'FAIL',
+        points: 0,
+        maxPoints: 50,
+        description: `Free hosting (${hostname}) with brand impersonation - CRITICAL phishing indicator`,
+        evidence: { hostname, isFreeHosting: true, brandKeywords: matchedBrands },
+        timestamp: new Date()
+      });
+      points += 50;
+    } else {
+      console.log(`[Trust Graph] WARNING: Free hosting detected: ${hostname}`);
+      checks.push({
+        checkId: 'free_hosting',
+        name: 'Free Hosting Provider',
+        category: 'reputation',
+        status: 'FAIL',
+        points: 0,
+        maxPoints: 35,
+        description: `Hosted on free platform (${hostname}) - HIGH risk`,
+        evidence: { hostname, isFreeHosting: true },
+        timestamp: new Date()
+      });
+      points += 35;
+    }
+  }
+
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return { categoryName: 'Trust Graph & Network', points, maxPoints, earnedPoints, possiblePoints, checks, skipped: false };
 }
 
 /**
@@ -846,7 +976,12 @@ export function runMalwareDetectionCategory(ctx: CategoryExecutionContext): Cate
   const maxPoints = 45;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    return { categoryName: 'Malware Detection', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return { categoryName: 'Malware Detection', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
   }
 
   let points = 0;
@@ -892,7 +1027,12 @@ export function runSocialEngineeringCategory(ctx: CategoryExecutionContext): Cat
   const maxPoints = 30;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    return { categoryName: 'Social Engineering', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return { categoryName: 'Social Engineering', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
   }
 
   let points = 0;
@@ -931,7 +1071,12 @@ export function runSecurityHeadersCategory(ctx: CategoryExecutionContext): Categ
   const maxPoints = 25;
 
   if (ctx.reachability !== 'ONLINE') {
-    return { categoryName: 'Security Headers', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return { categoryName: 'Security Headers', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
   }
 
   let points = 0;
@@ -1057,6 +1202,11 @@ export function runEmailSecurityCategory(ctx: CategoryExecutionContext): Categor
   });
   if (hasMX && !spfValid) points += 8;
 
+  
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
   return { categoryName: 'Email Security (DMARC)', points, maxPoints, checks, skipped: false };
 }
 
@@ -1070,7 +1220,12 @@ export function runDataProtectionCategory(ctx: CategoryExecutionContext): Catego
   const maxPoints = 50;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    return { categoryName: 'Data Protection & Privacy', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return { categoryName: 'Data Protection & Privacy', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
   }
 
   let points = 0;
@@ -1151,7 +1306,12 @@ export function runFinancialFraudCategory(ctx: CategoryExecutionContext): Catego
   const maxPoints = 25;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    return { categoryName: 'Financial Fraud', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return { categoryName: 'Financial Fraud', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
   }
 
   let points = 0;
@@ -1187,7 +1347,12 @@ export function runIdentityTheftCategory(ctx: CategoryExecutionContext): Categor
   const maxPoints = 20;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    return { categoryName: 'Identity Theft', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return { categoryName: 'Identity Theft', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
   }
 
   let points = 0;
@@ -1223,7 +1388,12 @@ export function runTechnicalExploitsCategory(ctx: CategoryExecutionContext): Cat
   const maxPoints = 15;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    return { categoryName: 'Technical Exploits', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return { categoryName: 'Technical Exploits', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
   }
 
   let points = 0;
@@ -1276,7 +1446,12 @@ export function runLegalComplianceCategory(ctx: CategoryExecutionContext): Categ
   const maxPoints = 35;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    return { categoryName: 'Legal & Compliance', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    
+  // Calculate earnedPoints and possiblePoints
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return { categoryName: 'Legal & Compliance', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
   }
 
   let points = 0;
@@ -1368,26 +1543,27 @@ export function executeCategories(ctx: CategoryExecutionContext): {
 } {
   const results: CategoryResult[] = [];
 
-  // Always run these regardless of reachability (175 points)
+  // Always run these regardless of reachability (405 points)
   results.push(runThreatIntelCategory(ctx));          // 50 pts
   results.push(runDomainAnalysisCategory(ctx));       // 40 pts
-  results.push(runURLPatternAnalysisCategory(ctx));   // 30 pts - CRITICAL FOR OFFLINE PHISHING
-  results.push(runTrustGraphCategory(ctx));           // 30 pts
+  results.push(runURLPatternAnalysisCategory(ctx));   // 65 pts - CRITICAL FOR OFFLINE PHISHING
+  results.push(runTrustGraphCategory(ctx));           // 65 pts
   results.push(runEmailSecurityCategory(ctx));        // 25 pts
+  results.push(runPhishingPatternsCategory(ctx));     // 50 pts - MOVED TO ALWAYS-RUN
+
+  results.push(runFinancialFraudCategory(ctx));       // 25 pts - MOVED TO ALWAYS-RUN
+  results.push(runIdentityTheftCategory(ctx));        // 20 pts - MOVED TO ALWAYS-RUN
 
   // Conditional categories based on reachability (450 points)
   if (ctx.reachability === 'ONLINE') {
     // ALL categories with REAL implementations - NO PLACEHOLDERS
     results.push(runSSLSecurityCategory(ctx));          // 45 pts - TLS certificate validation
     results.push(runContentAnalysisCategory(ctx));      // 40 pts - HTML/DOM/script analysis
-    results.push(runPhishingPatternsCategory(ctx));     // 50 pts - Login forms/brand checks
     results.push(runBehavioralCategory(ctx));           // 25 pts - Auto-download/redirect detection
     results.push(runMalwareDetectionCategory(ctx));     // 45 pts - Script obfuscation/suspicious requests
     results.push(runSocialEngineeringCategory(ctx));    // 30 pts - Urgency/pressure tactics
     results.push(runDataProtectionCategory(ctx));       // 50 pts - Privacy policy/cookie consent
     results.push(runSecurityHeadersCategory(ctx));      // 25 pts - HSTS/X-Frame-Options
-    results.push(runFinancialFraudCategory(ctx));       // 25 pts - Financial keyword detection
-    results.push(runIdentityTheftCategory(ctx));        // 20 pts - File upload/ID harvesting
     results.push(runTechnicalExploitsCategory(ctx));    // 15 pts - Exploit pattern detection
     results.push(runLegalComplianceCategory(ctx));      // 35 pts - Terms/contact info
   }
