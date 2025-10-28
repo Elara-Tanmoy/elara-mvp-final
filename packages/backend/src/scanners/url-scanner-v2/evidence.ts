@@ -458,7 +458,8 @@ export class EvidenceCollector {
   private async collectScreenshot(url: string): Promise<ScreenshotEvidence | undefined> {
     try {
       logger.info(`[Evidence] Capturing screenshot for ${url}`);
-      const result = await this.screenshotService.capture(url);
+      // Skip GCS upload, return base64 data URL for immediate display
+      const result = await this.screenshotService.capture(url, { skipUpload: true });
 
       if (result.error) {
         logger.warn(`[Evidence] Screenshot capture failed: ${result.error}`);
