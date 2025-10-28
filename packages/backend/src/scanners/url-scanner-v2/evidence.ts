@@ -94,9 +94,10 @@ export class EvidenceCollector {
       const autoRedirect = this.detectAutoRedirect($);
       const obfuscatedScripts = dom.scripts.some(s => s.obfuscated);
 
-      // Screenshot - only capture for ONLINE URLs to save resources
+      // Screenshot - capture for reachable URLs (ONLINE, WAF, PARKED)
       let screenshot: ScreenshotEvidence | undefined;
-      if (!options.skipScreenshot && reachability.status === 'ONLINE') {
+      const reachableStatuses = ['ONLINE', 'WAF', 'PARKED'];
+      if (!options.skipScreenshot && reachableStatuses.includes(reachability.status)) {
         try {
           screenshot = await this.collectScreenshot(url);
           if (screenshot) {
@@ -354,8 +355,11 @@ export class EvidenceCollector {
   private async collectWHOIS(hostname: string): Promise<WHOISEvidence> {
     try {
       // Use RDAP API (modern replacement for WHOIS)
-      const tld = hostname.split('.').pop() || '';
-      const rdapUrl = `https://rdap.org/domain/${hostname}`;
+      // Extract base domain (www.nasa.com → nasa.com)
+      const parts = hostname.split('.');
+      const baseDomain = parts.length > 2 ? parts.slice(-2).join('.') : hostname;
+      const rdapUrl = `https://rdap.org/domain/${baseDomain}`;
+      console.log(`[Evidence] WHOIS lookup for ${hostname} (base: ${baseDomain})`);
 
       const response = await axios.get(rdapUrl, {
         timeout: 5000,

@@ -430,22 +430,22 @@ export class ReachabilityChecker {
       return ReachabilityStatus.PARKED;
     }
 
-    // HTTP errors
-    if (httpResult.error) {
-      return ReachabilityStatus.OFFLINE;
-    }
-
-    // Success status codes
+    // Success status codes (2xx and 3xx are considered ONLINE)
     if (httpResult.statusCode && httpResult.statusCode >= 200 && httpResult.statusCode < 400) {
       return ReachabilityStatus.ONLINE;
     }
 
-    // Client/server errors
+    // HTTP errors with no status code
+    if (httpResult.error && !httpResult.statusCode) {
+      return ReachabilityStatus.OFFLINE;
+    }
+
+    // Client/server errors (4xx and 5xx)
     if (httpResult.statusCode && httpResult.statusCode >= 400) {
       return ReachabilityStatus.OFFLINE;
     }
 
-    // Default to ONLINE if we got a response
+    // Default to ONLINE if we got any status code (even if we don't recognize it)
     if (httpResult.statusCode) {
       return ReachabilityStatus.ONLINE;
     }
