@@ -29,6 +29,7 @@ import { V2GeminiSummarizer } from '../../services/gemini/v2-summarizer.service.
 import { formatNonTechSummary, formatTechSummary } from './result-formatters';
 import { generateScoringExplanation, getReputationInfo } from './scoring-explainer';
 import { generateVerdict } from './verdict-generator.js';
+import { generateWebsiteSummary } from './website-summary.js';
 import { ReachabilityStatus, RiskLevel } from './types';
 import type {
   EnhancedScanResult,
@@ -580,7 +581,16 @@ export class URLScannerV2 {
       let nonTechSummary;
       let techSummary;
       let reputationInfo;
+      let websiteSummary;
 
+      try {
+        // Generate website summary from HTML content
+        websiteSummary = generateWebsiteSummary(evidence.html, canonicalUrl);
+        console.log(`[V2Scanner] Website summary generated: ${websiteSummary.title}`);
+      } catch (error: any) {
+        console.warn('[V2Scanner] Failed to generate website summary:', error.message);
+        websiteSummary = undefined;
+      }
 
       try {
         // Generate reputation info
@@ -616,6 +626,7 @@ export class URLScannerV2 {
         ...preliminaryResult,
         scoringExplanation,
         reputationInfo,
+        websiteSummary,
         aiSummary,
         nonTechSummary,
         techSummary

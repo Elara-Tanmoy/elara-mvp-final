@@ -488,6 +488,16 @@ export interface EnhancedScanResult {
   // Reputation info (new)
   reputationInfo?: ReputationInfo;
 
+  // Website summary (auto-generated from HTML)
+  websiteSummary?: {
+    title: string;
+    description: string;
+    mainClaims: string[];
+    purpose: string;
+    targetAudience?: string;
+    keyFeatures: string[];
+  };
+
   // Final verdict (new - ScamAdviser style)
   finalVerdict?: FinalVerdict;
 
