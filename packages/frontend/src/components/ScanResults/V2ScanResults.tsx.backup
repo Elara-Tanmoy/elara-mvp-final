@@ -145,199 +145,6 @@ const V2ScanResults: React.FC<V2ScanResultsProps> = ({ scan }) => {
         </div>
       </div>
 
-      {/* NEW: Highlights (Positive and Negative) */}
-      {scan.finalVerdict && (scan.finalVerdict.positiveHighlights?.length > 0 || scan.finalVerdict.negativeHighlights?.length > 0) && (
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-4">Key Findings</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Negative Highlights */}
-            {scan.finalVerdict.negativeHighlights?.length > 0 && (
-              <div className="bg-red-50 rounded-lg p-4 border-l-4 border-red-500">
-                <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5" />
-                  Security Concerns
-                </h4>
-                <ul className="space-y-1">
-                  {scan.finalVerdict.negativeHighlights.map((h: string, i: number) => (
-                    <li key={i} className="text-sm text-red-700 flex items-start gap-2">
-                      <span className="mt-1">•</span>
-                      <span>{h}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Positive Highlights */}
-            {scan.finalVerdict.positiveHighlights?.length > 0 && (
-              <div className="bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
-                <h4 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5" />
-                  Positive Indicators
-                </h4>
-                <ul className="space-y-1">
-                  {scan.finalVerdict.positiveHighlights.map((h: string, i: number) => (
-                    <li key={i} className="text-sm text-green-700 flex items-start gap-2">
-                      <span className="mt-1">•</span>
-                      <span>{h}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* NEW: Stage Verdicts */}
-      {scan.stageVerdicts && (
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <button
-            onClick={() => toggleSection('stageVerdicts')}
-            className="w-full flex items-center justify-between p-6 hover:bg-gray-50"
-          >
-            <div className="flex items-center gap-3">
-              <Target className="w-6 h-6 text-indigo-600" />
-              <h3 className="text-xl font-bold text-gray-900">Stage-by-Stage Analysis</h3>
-            </div>
-            {expandedSections.has('stageVerdicts') ? <ChevronUp /> : <ChevronDown />}
-          </button>
-
-          {expandedSections.has('stageVerdicts') && (
-            <div className="border-t border-gray-200 p-6 space-y-4">
-              {/* Reachability */}
-              {scan.stageVerdicts.reachability && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
-                    <Server className="w-5 h-5" />
-                    Reachability Check
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <div><span className="font-semibold">Status:</span> {scan.stageVerdicts.reachability.status}</div>
-                    <div><span className="font-semibold">Explanation:</span> {scan.stageVerdicts.reachability.explanation}</div>
-                  </div>
-                </div>
-              )}
-
-              {/* Threat Intelligence */}
-              {scan.stageVerdicts.threatIntel && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
-                    <Shield className="w-5 h-5" />
-                    Threat Intelligence
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <div><span className="font-semibold">Verdict:</span> {scan.stageVerdicts.threatIntel.verdict}</div>
-                    <div><span className="font-semibold">Total Hits:</span> {scan.stageVerdicts.threatIntel.hits}</div>
-                    <div><span className="font-semibold">Tier-1 Hits:</span> {scan.stageVerdicts.threatIntel.tier1Hits}</div>
-                    {scan.stageVerdicts.threatIntel.sources && scan.stageVerdicts.threatIntel.sources.length > 0 && (
-                      <div><span className="font-semibold">Sources:</span> {scan.stageVerdicts.threatIntel.sources.join(', ')}</div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Domain Analysis */}
-              {scan.stageVerdicts.domainAnalysis && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
-                    <Globe className="w-5 h-5" />
-                    Domain Analysis
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <div><span className="font-semibold">Age:</span> {scan.stageVerdicts.domainAnalysis.age} days</div>
-                    <div><span className="font-semibold">Verdict:</span> {scan.stageVerdicts.domainAnalysis.verdict}</div>
-                    <div><span className="font-semibold">Explanation:</span> {scan.stageVerdicts.domainAnalysis.explanation}</div>
-                  </div>
-                </div>
-              )}
-
-              {/* Content Analysis */}
-              {scan.stageVerdicts.contentAnalysis && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
-                    <Code className="w-5 h-5" />
-                    Content Analysis
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <div><span className="font-semibold">Login Form:</span> {scan.stageVerdicts.contentAnalysis.hasLoginForm ? 'Yes' : 'No'}</div>
-                    <div><span className="font-semibold">Auto Download:</span> {scan.stageVerdicts.contentAnalysis.autoDownload ? 'Yes' : 'No'}</div>
-                    <div><span className="font-semibold">Verdict:</span> {scan.stageVerdicts.contentAnalysis.verdict}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* NEW: Combiner Summary */}
-      {scan.combinerSummary && (
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <button
-            onClick={() => toggleSection('combinerSummary')}
-            className="w-full flex items-center justify-between p-6 hover:bg-gray-50"
-          >
-            <div className="flex items-center gap-3">
-              <Brain className="w-6 h-6 text-purple-600" />
-              <h3 className="text-xl font-bold text-gray-900">Risk Calculation Logic</h3>
-            </div>
-            {expandedSections.has('combinerSummary') ? <ChevronUp /> : <ChevronDown />}
-          </button>
-
-          {expandedSections.has('combinerSummary') && (
-            <div className="border-t border-gray-200 p-6 space-y-4">
-              <div className="bg-purple-50 rounded-lg p-4">
-                <div className="space-y-3">
-                  <div>
-                    <span className="font-semibold text-gray-900">Algorithm:</span>
-                    <p className="text-sm text-gray-700 mt-1">{scan.combinerSummary.algorithm}</p>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-gray-900">Verdict Logic:</span>
-                    <p className="text-sm text-gray-700 mt-1">{scan.combinerSummary.verdictLogic}</p>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-gray-900">Final Probability:</span>
-                    <p className="text-sm text-gray-700 mt-1">{(scan.combinerSummary.finalProbability * 100).toFixed(1)}%</p>
-                  </div>
-                  {scan.combinerSummary.confidenceInterval && (
-                    <div>
-                      <span className="font-semibold text-gray-900">Confidence Interval:</span>
-                      <p className="text-sm text-gray-700 mt-1">
-                        [{(scan.combinerSummary.confidenceInterval.lower * 100).toFixed(1)}%, {(scan.combinerSummary.confidenceInterval.upper * 100).toFixed(1)}%]
-                        (Width: {(scan.combinerSummary.confidenceInterval.width * 100).toFixed(1)}%)
-                      </p>
-                    </div>
-                  )}
-                  {scan.combinerSummary.modelContributions && (
-                    <div>
-                      <span className="font-semibold text-gray-900 mb-2 block">Model Contributions:</span>
-                      <div className="grid grid-cols-3 gap-2 text-sm">
-                        <div className="bg-white rounded p-2">
-                          <div className="text-gray-600">Stage-1 Weight</div>
-                          <div className="font-bold text-blue-600">{(scan.combinerSummary.modelContributions.stage1Weight * 100).toFixed(0)}%</div>
-                        </div>
-                        {scan.combinerSummary.modelContributions.stage2Weight !== undefined && (
-                          <div className="bg-white rounded p-2">
-                            <div className="text-gray-600">Stage-2 Weight</div>
-                            <div className="font-bold text-purple-600">{(scan.combinerSummary.modelContributions.stage2Weight * 100).toFixed(0)}%</div>
-                          </div>
-                        )}
-                        <div className="bg-white rounded p-2">
-                          <div className="text-gray-600">Causal Signals</div>
-                          <div className="font-bold text-orange-600">{(scan.combinerSummary.modelContributions.causalSignalsWeight * 100).toFixed(0)}%</div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Detection Stages */}
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         <button
@@ -489,64 +296,50 @@ const V2ScanResults: React.FC<V2ScanResultsProps> = ({ scan }) => {
                 </p>
               </div>
 
-              {/* Probability Breakdown - FIXED with null checks */}
-              {scan.scoringExplanation?.probabilityBreakdown ? (
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Probability Calculation:</h4>
-                  <div className="space-y-2">
-                    {scan.scoringExplanation.probabilityBreakdown.stage1Combined !== null && scan.scoringExplanation.probabilityBreakdown.stage1Combined !== undefined && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Stage-1 Models Combined:</span>
-                        <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.stage1Combined * 100).toFixed(1)}%</span>
-                      </div>
-                    )}
-                    {scan.scoringExplanation.probabilityBreakdown.stage2Combined !== null && scan.scoringExplanation.probabilityBreakdown.stage2Combined !== undefined && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Stage-2 Models Combined:</span>
-                        <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.stage2Combined * 100).toFixed(1)}%</span>
-                      </div>
-                    )}
-                    {scan.scoringExplanation.probabilityBreakdown.causalAdjustments !== undefined && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Causal Adjustments:</span>
-                        <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.causalAdjustments * 100).toFixed(1)}%</span>
-                      </div>
-                    )}
-                    {scan.scoringExplanation.probabilityBreakdown.branchCorrection !== undefined && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Branch Correction:</span>
-                        <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.branchCorrection * 100).toFixed(1)}%</span>
-                      </div>
-                    )}
-                    {scan.scoringExplanation.probabilityBreakdown.categoryBoost !== undefined && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Category Boost/Discount:</span>
-                        <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.categoryBoost * 100).toFixed(1)}%</span>
-                      </div>
-                    )}
-                    {scan.scoringExplanation.probabilityBreakdown.reputationDiscount !== undefined && scan.scoringExplanation.probabilityBreakdown.reputationDiscount !== 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span className="font-medium">Reputation Discount:</span>
-                        <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.reputationDiscount * 100).toFixed(1)}%</span>
-                      </div>
-                    )}
-                    {scan.scoringExplanation.probabilityBreakdown.domainAgeDiscount !== undefined && scan.scoringExplanation.probabilityBreakdown.domainAgeDiscount !== 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span className="font-medium">Domain Age Discount:</span>
-                        <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.domainAgeDiscount * 100).toFixed(1)}%</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-base font-bold border-t pt-2 mt-2">
-                      <span>Final Probability:</span>
-                      <span className="font-mono">{(scan.probability * 100).toFixed(1)}%</span>
+              {/* Probability Breakdown */}
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">Probability Calculation:</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Stage-1 Models Combined:</span>
+                    <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.stage1Combined * 100).toFixed(1)}%</span>
+                  </div>
+                  {scan.scoringExplanation.probabilityBreakdown.stage2Combined !== null && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Stage-2 Models Combined:</span>
+                      <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.stage2Combined * 100).toFixed(1)}%</span>
                     </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Causal Adjustments:</span>
+                    <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.causalAdjustments * 100).toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Branch Correction:</span>
+                    <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.branchCorrection * 100).toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Category Boost/Discount:</span>
+                    <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.categoryBoost * 100).toFixed(1)}%</span>
+                  </div>
+                  {scan.scoringExplanation.probabilityBreakdown.reputationDiscount !== 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span className="font-medium">Reputation Discount:</span>
+                      <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.reputationDiscount * 100).toFixed(1)}%</span>
+                    </div>
+                  )}
+                  {scan.scoringExplanation.probabilityBreakdown.domainAgeDiscount !== 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span className="font-medium">Domain Age Discount:</span>
+                      <span className="font-mono">{(scan.scoringExplanation.probabilityBreakdown.domainAgeDiscount * 100).toFixed(1)}%</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-base font-bold border-t pt-2 mt-2">
+                    <span>Final Probability:</span>
+                    <span className="font-mono">{(scan.probability * 100).toFixed(1)}%</span>
                   </div>
                 </div>
-              ) : (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Detailed probability breakdown not available</p>
-                </div>
-              )}
+              </div>
 
               {/* Key Factors */}
               {scan.scoringExplanation.keyFactors && scan.scoringExplanation.keyFactors.length > 0 && (
@@ -628,8 +421,8 @@ const V2ScanResults: React.FC<V2ScanResultsProps> = ({ scan }) => {
         </div>
       )}
 
-      {/* FIXED: Screenshot Display */}
-      {(scan.screenshot || scan.screenshotUrl) && scan.screenshot !== 'N/A' && scan.screenshotUrl !== 'N/A' && (
+      {/* NEW: Screenshot Display */}
+      {(scan.screenshot || scan.screenshotUrl) && (
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div
             className="flex items-center justify-between cursor-pointer"
@@ -791,19 +584,12 @@ const V2ScanResults: React.FC<V2ScanResultsProps> = ({ scan }) => {
                 <div key={i} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
-                      <span className="font-semibold text-gray-900">{cat.categoryName}</span>
+                      <span className="font-semibold text-gray-900">{cat.name}</span>
                       {cat.description && (
                         <p className="text-sm text-gray-600 mt-1">{cat.description}</p>
                       )}
-                      {/* Show earned/possible points */}
-                      {cat.earnedPoints !== undefined && cat.possiblePoints !== undefined && (
-                        <div className="text-sm text-gray-600 mt-1">
-                          Earned: {cat.earnedPoints}/{cat.possiblePoints} points ({cat.percentage || 0}%)
-                        </div>
-                      )}
                     </div>
                     <div className="ml-4 text-right">
-                      <div className="text-xs text-gray-500 mb-1">Penalty</div>
                       <span className="text-xl font-bold text-gray-900">{cat.points}</span>
                       <span className="text-gray-500">/{cat.maxPoints}</span>
                     </div>

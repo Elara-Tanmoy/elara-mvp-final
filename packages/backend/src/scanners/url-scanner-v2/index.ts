@@ -340,6 +340,12 @@ export class URLScannerV2 {
         console.log(`[V2Scanner] Final Risk Level: ${riskLevel} (from probability)`);
       }
 
+      // OVERRIDE: Very young domains should be at least Level D
+      if (evidence.whois.domainAge < 7 && riskLevel < 'D') {
+        console.log(`[V2Scanner] Overriding risk level from ${riskLevel} to D (domain age: ${evidence.whois.domainAge} days)`);
+        riskLevel = 'D';
+      }
+
       // Get recommended actions
       const recommendedActions = policyEngine.getRecommendedActions(
         policyResult,

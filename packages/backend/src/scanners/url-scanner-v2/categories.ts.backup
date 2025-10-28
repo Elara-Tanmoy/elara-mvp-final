@@ -176,8 +176,8 @@ export function runDomainAnalysisCategory(ctx: CategoryExecutionContext): Catego
     },
     timestamp: new Date()
   });
-  if (isVeryNew) points += 50;  // INCREASED from 20
-  else if (isYoungDomain) points += 30;  // INCREASED from 10
+  if (isVeryNew) points += 20;
+  else if (isYoungDomain) points += 10;
 
   // Check 2.2: WHOIS privacy protection
   const hasPrivacy = whois?.privacyProtected || false;
@@ -830,38 +830,7 @@ export function runPhishingPatternsCategory(ctx: CategoryExecutionContext): Cate
     points += 25; // HIGH RISK PENALTY
   }
 
-  // Check 5.2: Government/Authority Impersonation (NEW - CRITICAL)
-  const parsedUrl = new URL(ctx.url);
-  const hostname = parsedUrl.hostname;
-  const govKeywords = ['gov', 'government', 'tax', 'irs', 'revenue', 'fine', 'penalty',
-                       'traffic', 'offence', 'offense', 'police', 'court', 'legal',
-                       'dmv', 'license', 'permit', 'citation', 'ticket'];
-
-  const domainLower = hostname.toLowerCase();
-  const hasGovKeyword = govKeywords.some(keyword => domainLower.includes(keyword));
-
-  if (hasGovKeyword && !hostname.endsWith('.gov') && !hostname.endsWith('.gov.uk')) {
-    checks.push({
-      checkId: 'government_impersonation',
-      name: 'Government/Authority Impersonation',
-      category: 'security',
-      status: 'FAIL',
-      points: 0,
-      maxPoints: 50,  // VERY HIGH PENALTY
-      description: `Domain contains government/authority keywords but is not official domain`,
-      details: `Domain "${hostname}" contains keywords suggesting government/authority but doesn't use official TLD (.gov)`,
-      evidence: {
-        keywords: govKeywords.filter(k => domainLower.includes(k)),
-        actualTLD: hostname.split('.').pop(),
-        isOfficialGov: false
-      },
-      reasoning: '0 points awarded (50 penalty points applied). Sites impersonating government authorities are highly likely to be phishing scams.',
-      timestamp: new Date()
-    });
-    points += 50;
-  }
-
-  // Check 5.3: HTTP on login page (NO TLS for sensitive forms)
+  // Check 5.2: HTTP on login page (NO TLS for sensitive forms)
   const parsedUrl = new URL(ctx.url);
   const isHTTP = parsedUrl.protocol === 'http:';
   if (isHTTP && hasPasswordForm) {
@@ -879,7 +848,7 @@ export function runPhishingPatternsCategory(ctx: CategoryExecutionContext): Cate
     points += 40; // VERY HIGH RISK PENALTY
   }
 
-  // Check 5.4: Login form with external submission
+  // Check 5.3: Login form with external submission
   checks.push({
     checkId: 'phishing_login_form',
     name: 'Suspicious Login Form Detection',

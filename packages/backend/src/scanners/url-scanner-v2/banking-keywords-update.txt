@@ -1,0 +1,29 @@
+  // Check 2.5.1: Banking/financial keywords in URL (CRITICAL FOR PHISHING)
+  const bankingKeywords = [
+    // Banks - Canadian
+    'bank', 'cibc', 'td', 'rbc', 'scotia', 'bmo', 'tangerine',
+    'simplii', 'desjardins', 'hsbc', 'scotiabank', 'tdbank',
+    // Banks - US
+    'paypal', 'chase', 'wellsfargo', 'bankofamerica', 'bofa', 'citi', 'citibank',
+    'capitalone', 'usbank', 'pnc', 'truist',
+    // Payment & Finance
+    'venmo', 'cashapp', 'zelle', 'stripe', 'square',
+    // Cloud Storage & File Sharing
+    'dropbox', 'onedrive', 'googledrive', 'icloud', 'box', 'sharepoint',
+    // Document Services
+    'docusign', 'adobesign', 'hellosign', 'pandadoc', 'signnow',
+    // Tech Companies (commonly impersonated)
+    'microsoft', 'google', 'apple', 'amazon', 'facebook', 'meta',
+    'netflix', 'spotify', 'linkedin', 'twitter', 'instagram',
+    'outlook', 'gmail', 'yahoo', 'hotmail',
+    // E-commerce
+    'ebay', 'etsy', 'shopify', 'walmart', 'target', 'bestbuy',
+    // Crypto
+    'coinbase', 'binance', 'kraken', 'crypto', 'blockchain', 'wallet',
+    // Government (commonly impersonated)
+    'irs', 'cra', 'gov', 'government', 'uscis', 'usps', 'fedex', 'dhl', 'ups',
+    // Generic phishing keywords
+    'login', 'signin', 'account', 'verify', 'update', 'secure', 'suspend',
+    'banking', 'onlinebanking', 'ebanking', 'netbanking', 'credential',
+    'password', 'confirm', 'validation', 'authenticate', 'activate'
+  ];
