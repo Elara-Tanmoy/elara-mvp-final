@@ -862,7 +862,6 @@ export function runPhishingPatternsCategory(ctx: CategoryExecutionContext): Cate
   }
 
   // Check 5.3: HTTP on login page (NO TLS for sensitive forms)
-  const parsedUrl = new URL(ctx.url);
   const isHTTP = parsedUrl.protocol === 'http:';
   if (isHTTP && hasPasswordForm) {
     checks.push({
