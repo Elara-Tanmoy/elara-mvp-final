@@ -1079,7 +1079,7 @@ export function runTechnicalExploitsCategory(ctx: CategoryExecutionContext): Cat
     'linkedin.com', 'instagram.com', 'tiktok.com', 'spotify.com'
   ];
 
-  const isTrustedDomain = trustedDomains.some(domain =>
+  const isTrustedDomain = ctx.evidence.hostname && trustedDomains.some(domain =>
     ctx.evidence.hostname === domain || ctx.evidence.hostname.endsWith('.' + domain)
   );
 
