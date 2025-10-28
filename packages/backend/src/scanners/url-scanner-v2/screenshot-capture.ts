@@ -12,7 +12,7 @@ import { logger } from '../../config/logger.js';
 
 const PROJECT_ID = process.env.GCP_PROJECT_ID || 'elara-mvp-13082025-u1';
 const BUCKET_NAME = `${PROJECT_ID}-screenshots`;
-const SCREENSHOT_TIMEOUT = 15000; // 15 seconds
+const SCREENSHOT_TIMEOUT = 30000; // 30 seconds for slow/protected sites
 
 export interface ScreenshotResult {
   url?: string;
