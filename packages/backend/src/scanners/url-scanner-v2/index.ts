@@ -516,25 +516,8 @@ export class URLScannerV2 {
       let aiSummary;
       let nonTechSummary;
       let techSummary;
-      let scoringExplanation;
       let reputationInfo;
 
-      try {
-        // Generate scoring explanation
-        scoringExplanation = generateScoringExplanation(
-          new URL(canonicalUrl).hostname,
-          evidence.whois.domainAge,
-          riskLevel,
-          combinerResult.probability,
-          combinerResult.decisionGraph,
-          categoryResults.totalPoints,
-          categoryResults.totalPossible
-        );
-        console.log(`[V2Scanner] Scoring explanation generated successfully`);
-      } catch (error: any) {
-        console.warn('[V2Scanner] Failed to generate scoring explanation:', error.message);
-        scoringExplanation = undefined;
-      }
 
       try {
         // Generate reputation info
