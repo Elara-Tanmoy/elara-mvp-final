@@ -251,7 +251,7 @@ export class URLScannerV2 {
       });
       const categoryLatency = Date.now() - categoryStart;
       const categoryRiskFactor = categoryResults.totalPoints / categoryResults.totalPossible;
-      console.log(`[V2Scanner] Category checks complete: ${categoryResults.totalPoints}/${categoryResults.totalPossible} points (${(categoryRiskFactor * 100).toFixed(1)}% risk) (${categoryLatency}ms)`);
+      console.log(`[V2Scanner] Category checks complete: ${categoryResults.totalCheckPointsEarned}/${categoryResults.totalCheckPointsPossible} points earned (penalty: ${categoryResults.totalPoints}/${categoryResults.totalPossible}, (${(categoryRiskFactor * 100).toFixed(1)}% risk) (${categoryLatency}ms)`);
       console.log(`[V2Scanner] Granular checks tracked: ${categoryResults.allChecks.length}`);
 
       // Log failed checks for visibility

@@ -4,7 +4,7 @@
  * Per Architecture: Evidence Collection
  */
 
-import puppeteer, { Browser, Page } from 'puppeteer';
+import puppeteer, { Browser, Page } from 'puppeteer-core';
 import { Storage } from '@google-cloud/storage';
 import crypto from 'crypto';
 import fs from 'fs';
