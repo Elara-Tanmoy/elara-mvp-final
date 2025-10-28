@@ -11,11 +11,10 @@
 
 import React, { useState } from 'react';
 import {
-  Shield, AlertTriangle, XCircle, CheckCircle, Info,
-  Activity, Target, Brain, Download, Share2, TrendingUp,
-  Clock, Server, Lock, Globe, Eye, Code, AlertCircle,
-  ChevronDown, ChevronUp, Zap, Gauge, List, BarChart3,
-  Award, Calendar, ExternalLink, FileText, Search, Layers
+  Shield, XCircle, CheckCircle, Info,
+  Activity, Brain, Download, Share2, TrendingUp,
+  Clock, Lock, Globe, Eye, AlertCircle,
+  ChevronDown, ChevronUp, Zap, Gauge, List
 } from 'lucide-react';
 
 interface V2ScanResultsEnhancedProps {
