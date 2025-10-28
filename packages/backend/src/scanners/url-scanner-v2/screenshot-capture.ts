@@ -37,15 +37,20 @@ export class ScreenshotCaptureService {
     if (!this.browser) {
       try {
         this.browser = await puppeteer.launch({
-          headless: true,
+          executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
           args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
+            '--disable-dev-shm-usage',  // CRITICAL for Docker - prevents crashes
             '--disable-gpu',
+            '--disable-software-rasterizer',
+            '--disable-dev-tools',
             '--no-first-run',
-            '--no-zygote'
+            '--no-zygote',
+            '--single-process',  // Helps in containerized envs
+            '--disable-extensions'
           ],
+          headless: true,
           timeout: 30000
         });
         logger.info('[ScreenshotCapture] Browser launched successfully');
@@ -85,7 +90,7 @@ export class ScreenshotCaptureService {
         });
 
         // Wait a bit for dynamic content
-        await page.waitForTimeout(2000);
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Capture screenshot
         const screenshotBuffer = await page.screenshot({

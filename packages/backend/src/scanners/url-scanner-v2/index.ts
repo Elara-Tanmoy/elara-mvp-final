@@ -27,6 +27,7 @@ import { executeCategories } from './categories';
 import { geminiScanSummarizerService } from '../../services/ai/gemini-scan-summarizer.service.js';
 import { V2GeminiSummarizer } from '../../services/gemini/v2-summarizer.service.js';
 import { formatNonTechSummary, formatTechSummary } from './result-formatters';
+import { generateScoringExplanation, getReputationInfo } from './scoring-explainer';
 import { ReachabilityStatus, RiskLevel } from './types';
 import type {
   EnhancedScanResult,
@@ -311,11 +312,39 @@ export class URLScannerV2 {
           combinerResult.confidenceInterval.width < 0.4 ? 'medium' : 'low'
       };
 
-      // Step 11: Generate AI summary and formatted outputs (optional, don't fail scan if it errors)
-      console.log(`[V2Scanner] Step 11: Generating AI summary and formatted outputs...`);
+      // Step 11: Generate AI summary, scoring explanation, and formatted outputs (optional, don't fail scan if it errors)
+      console.log(`[V2Scanner] Step 11: Generating AI summary, scoring explanation, and formatted outputs...`);
       let aiSummary;
       let nonTechSummary;
       let techSummary;
+      let scoringExplanation;
+      let reputationInfo;
+
+      try {
+        // Generate scoring explanation
+        scoringExplanation = generateScoringExplanation(
+          new URL(canonicalUrl).hostname,
+          evidence.whois.domainAge,
+          riskLevel,
+          combinerResult.probability,
+          combinerResult.decisionGraph,
+          categoryResults.totalPoints,
+          categoryResults.totalPossible
+        );
+        console.log(`[V2Scanner] Scoring explanation generated successfully`);
+      } catch (error: any) {
+        console.warn('[V2Scanner] Failed to generate scoring explanation:', error.message);
+        scoringExplanation = undefined;
+      }
+
+      try {
+        // Generate reputation info
+        reputationInfo = getReputationInfo(new URL(canonicalUrl).hostname);
+        console.log(`[V2Scanner] Reputation info generated successfully`);
+      } catch (error: any) {
+        console.warn('[V2Scanner] Failed to generate reputation info:', error.message);
+        reputationInfo = undefined;
+      }
 
       try {
         // Generate AI summary using new Gemini service
@@ -337,9 +366,11 @@ export class URLScannerV2 {
         techSummary = undefined;
       }
 
-      // Build final result with AI summary and formatted outputs
+      // Build final result with AI summary, scoring explanation, and formatted outputs
       const result: EnhancedScanResult = {
         ...preliminaryResult,
+        scoringExplanation,
+        reputationInfo,
         aiSummary,
         nonTechSummary,
         techSummary

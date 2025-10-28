@@ -66,6 +66,7 @@ export class FeatureExtractor {
     } : undefined;
 
     return {
+      hostname: parsedUrl.hostname,
       lexical,
       tabular,
       causal,

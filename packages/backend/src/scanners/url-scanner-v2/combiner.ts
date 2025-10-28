@@ -16,6 +16,7 @@ import type {
   DecisionNode,
   CalibrationConfig
 } from './types';
+import { reputationWhitelist } from './reputation-whitelist';
 
 /**
  * Calibration data structure
@@ -82,11 +83,87 @@ export class PredictionCombiner {
     );
     step++;
 
+    // ==================================================================
+    // REPUTATION & DOMAIN AGE OVERRIDE (NEW - Critical for false positives)
+    // ==================================================================
+
+    let probability = branchCorrected;
+    const hostname = features.hostname;
+    const domainAge = features.tabular.domainAge || 0;
+
+    // Check Tranco reputation whitelist
+    const reputation = reputationWhitelist.getReputation(hostname);
+
+    let reputationAdjustment = 0;
+    let domainAgeAdjustment = 0;
+
+    // Strong reputation override for top-ranked domains
+    if (reputation && reputation.trustScore >= 85) {
+      // Top 10k domains: Force very low risk regardless of ML score
+      reputationAdjustment = -Math.max(0, probability - 0.10); // Cap at 10%
+
+      decisionGraph.push({
+        step: step++,
+        component: 'Reputation Override',
+        input: {
+          originalProb: probability,
+          domain: hostname,
+          rank: reputation.rank,
+          trustScore: reputation.trustScore
+        },
+        output: {
+          adjustment: reputationAdjustment,
+          newProb: probability + reputationAdjustment
+        },
+        contribution: reputationAdjustment,
+        timestamp: new Date()
+      });
+
+      probability = Math.max(0.01, probability + reputationAdjustment);
+    } else if (reputation && reputation.trustScore >= 70) {
+      // Top 100k domains: Moderate trust discount
+      reputationAdjustment = -Math.min(0.30, probability * 0.40);
+      probability = Math.max(0.05, probability + reputationAdjustment);
+
+      decisionGraph.push({
+        step: step++,
+        component: 'Reputation Discount',
+        input: { originalProb: probability - reputationAdjustment, rank: reputation.rank },
+        output: { discount: reputationAdjustment, newProb: probability },
+        contribution: reputationAdjustment,
+        timestamp: new Date()
+      });
+    }
+
+    // Domain age discount (5+ years = established)
+    if (domainAge > 1825) {  // 5 years
+      const yearsFactor = Math.min(domainAge / 3650, 10) / 10; // Cap at 10 years
+      domainAgeAdjustment = -Math.min(0.25, probability * yearsFactor * 0.30);
+
+      decisionGraph.push({
+        step: step++,
+        component: 'Domain Age Trust',
+        input: {
+          originalProb: probability,
+          domainAge,
+          years: Math.floor(domainAge / 365)
+        },
+        output: {
+          discount: domainAgeAdjustment,
+          newProb: probability + domainAgeAdjustment
+        },
+        contribution: domainAgeAdjustment,
+        timestamp: new Date()
+      });
+
+      probability = Math.max(0.01, probability + domainAgeAdjustment);
+    }
+
     // Step 3.5: Apply category-based risk boost (NEW - AGGRESSIVE PHISHING DETECTION)
-    let categoryAdjusted = branchCorrected;
+    let categoryAdjusted = probability;
     if (categoryResults) {
       categoryAdjusted = this.applyCategoryRiskBoost(
-        branchCorrected,
+        probability,
         categoryResults,
         decisionGraph,
         step
@@ -258,28 +335,34 @@ export class PredictionCombiner {
     let adjustedProb = probability;
     let boost = 0;
 
-    // SUPER AGGRESSIVE boosting for high-risk category scores
-    // Lower thresholds + higher boosts = better phishing detection
-    if (categoryRiskFactor > 0.7) {
-      // Very high category risk (>70% of possible points)
-      // Ensure probability is at least 95% (Grade F) - INCREASED from 90%
-      boost = Math.max(0, 0.95 - probability);
-      adjustedProb = Math.max(probability, 0.95);
-    } else if (categoryRiskFactor > 0.5) {
-      // High category risk (50-70% of possible points) - LOWERED from 60%
-      // Ensure probability is at least 80% (Grade E) - INCREASED from 75%
-      boost = Math.max(0, 0.80 - probability);
-      adjustedProb = Math.max(probability, 0.80);
-    } else if (categoryRiskFactor > 0.35) {
-      // Medium category risk (35-50% of possible points) - LOWERED from 40%
-      // Ensure probability is at least 65% (Grade D) - INCREASED from 50%
-      boost = Math.max(0, 0.65 - probability);
-      adjustedProb = Math.max(probability, 0.65);
-    } else if (categoryRiskFactor > 0.25) {
-      // Low-medium category risk (25-35% of possible points)
-      // Apply modest boost
-      boost = categoryRiskFactor * 0.20;  // INCREASED from 0.15
-      adjustedProb = Math.min(1, probability + boost);
+    // Category risk boost - ONLY boost if actual penalties exist
+    let categoryBoostAdjustment = 0;
+
+    if (categoryRiskFactor > 0.25) {
+      // Significant penalties: Apply boost
+      if (categoryRiskFactor > 0.7) {
+        boost = Math.max(0, 0.90 - probability);
+        adjustedProb = Math.max(probability, 0.90);
+      } else if (categoryRiskFactor > 0.5) {
+        boost = Math.max(0, 0.75 - probability);
+        adjustedProb = Math.max(probability, 0.75);
+      } else if (categoryRiskFactor > 0.35) {
+        boost = Math.max(0, 0.60 - probability);
+        adjustedProb = Math.max(probability, 0.60);
+      } else {
+        boost = categoryRiskFactor * 0.25;
+        adjustedProb = Math.min(1, probability + boost);
+      }
+
+      categoryBoostAdjustment = adjustedProb - probability;
+    } else if (categoryRiskFactor < 0.10) {
+      // Very low/zero penalties: Apply DISCOUNT (clean site)
+      const discount = Math.min(0.20, probability * 0.30);
+      categoryBoostAdjustment = -discount;
+      adjustedProb = Math.max(0.01, probability - discount);
+    } else {
+      // Minimal penalties: No adjustment
+      adjustedProb = probability;
     }
 
     decisionGraph.push({
@@ -291,8 +374,8 @@ export class PredictionCombiner {
         categoryPoints: categoryResults.totalPoints,
         categoryPossible: categoryResults.totalPossible
       },
-      output: { adjustedProb, boost: Math.round(boost * 100) / 100 },
-      contribution: boost,
+      output: { adjustedProb, boost: Math.round(categoryBoostAdjustment * 100) / 100 },
+      contribution: categoryBoostAdjustment,
       timestamp: new Date()
     });
 

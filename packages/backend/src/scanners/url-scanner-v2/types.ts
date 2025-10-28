@@ -202,6 +202,9 @@ export interface ScreenshotEvidence {
  * Extracted features for ML models
  */
 export interface ExtractedFeatures {
+  // URL metadata
+  hostname: string;
+
   // Lexical features
   lexical: {
     charNgrams: number[]; // For XGBoost model
@@ -470,6 +473,12 @@ export interface EnhancedScanResult {
     technicalDetails?: string;
   };
 
+  // Scoring explanation (new)
+  scoringExplanation?: ScoringExplanation;
+
+  // Reputation info (new)
+  reputationInfo?: ReputationInfo;
+
   // Performance
   latency: {
     total: number;
@@ -548,4 +557,38 @@ export interface V2Config {
     stage2: number;
     total: number;
   };
+}
+
+/**
+ * Scoring explanation for transparency
+ */
+export interface ScoringExplanation {
+  finalVerdict: string;
+  riskReasoning: string;
+  probabilityBreakdown: {
+    stage1Combined: number;
+    stage2Combined: number | null;
+    causalAdjustments: number;
+    branchCorrection: number;
+    categoryBoost: number;
+    reputationDiscount: number;
+    domainAgeDiscount: number;
+    final: number;
+  };
+  keyFactors: Array<{
+    factor: string;
+    impact: 'positive' | 'negative';
+    weight: number;
+    description: string;
+  }>;
+}
+
+/**
+ * Reputation information
+ */
+export interface ReputationInfo {
+  rank: number | null;
+  trustScore: number | null;
+  trustLevel: string;
+  source: string;
 }
