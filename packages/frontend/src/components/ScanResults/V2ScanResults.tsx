@@ -629,7 +629,7 @@ const V2ScanResults: React.FC<V2ScanResultsProps> = ({ scan }) => {
       )}
 
       {/* FIXED: Screenshot Display */}
-      {(scan.screenshot || scan.screenshotUrl) && scan.screenshot !== 'N/A' && scan.screenshotUrl !== 'N/A' && (
+      {((scan.screenshot && scan.screenshot !== 'N/A') || (scan.screenshotUrl && scan.screenshotUrl !== 'N/A')) && (
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div
             className="flex items-center justify-between cursor-pointer"
