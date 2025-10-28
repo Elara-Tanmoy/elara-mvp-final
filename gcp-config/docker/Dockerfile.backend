@@ -6,10 +6,23 @@
 
 FROM node:20-alpine AS production
 
-# Install OpenSSL and development libraries for Prisma
-RUN apk add --no-cache openssl openssl-dev
+# Install OpenSSL, Chromium, and dependencies for Prisma + Puppeteer
+RUN apk add --no-cache \
+    openssl \
+    openssl-dev \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    font-noto-emoji
 
 RUN npm install -g pnpm@latest tsx@latest
+
+# Tell Puppeteer to use installed Chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # Use existing node user (UID 1000)
 WORKDIR /app

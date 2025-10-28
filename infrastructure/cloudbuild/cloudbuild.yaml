@@ -23,7 +23,7 @@ steps:
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/backend-api:latest'
       - '-f'
-      - 'gcp-infrastructure/docker/Dockerfile.backend'
+      - 'gcp-config/docker/Dockerfile.backend'
       - '.'
     waitFor: ['-']
 
