@@ -97,7 +97,6 @@ const V2ScanResultsEnhanced: React.FC<V2ScanResultsEnhancedProps> = ({ scan }) =
   };
 
   const verdictInfo = getVerdictInfo();
-  const VerdictIcon = verdictInfo.icon;
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
