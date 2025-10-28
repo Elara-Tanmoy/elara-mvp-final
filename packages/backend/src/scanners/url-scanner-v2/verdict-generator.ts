@@ -22,7 +22,7 @@ export interface FinalVerdict {
   recommendation: string;
   positiveHighlights: string[];
   negativeHighlights: string[];
-  badges: Verdict Badge[];
+  badges: VerdictBadge[];
 }
 
 export interface VerdictBadge {
