@@ -112,10 +112,15 @@ export function runThreatIntelCategory(ctx: CategoryExecutionContext): CategoryR
   });
   if (hasTier1) points += 20; // Additional penalty
 
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
   return {
     categoryName: 'Threat Intelligence',
     points,
     maxPoints,
+    earnedPoints,
+    possiblePoints,
     checks,
     skipped: false
   };
@@ -249,10 +254,15 @@ export function runDomainAnalysisCategory(ctx: CategoryExecutionContext): Catego
   });
   if (isSuspiciousRegistrar) points += 5;
 
-return {
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return {
     categoryName: 'Domain/WHOIS/TLD Analysis',
     points,
     maxPoints,
+    earnedPoints,
+    possiblePoints,
     checks,
     skipped: false
   };
@@ -541,6 +551,8 @@ export function runSSLSecurityCategory(ctx: CategoryExecutionContext): CategoryR
       categoryName: 'SSL/TLS Security',
       points: 0,
       maxPoints,
+      earnedPoints: 0,
+      possiblePoints: 0,
       checks: [],
       skipped: true,
       skipReason: ctx.reachability !== 'ONLINE'
@@ -639,10 +651,15 @@ export function runSSLSecurityCategory(ctx: CategoryExecutionContext): CategoryR
   });
   if (!isModernTLS) points += 5;
 
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
   return {
     categoryName: 'SSL/TLS Security',
     points,
     maxPoints,
+    earnedPoints,
+    possiblePoints,
     checks,
     skipped: false
   };
@@ -662,6 +679,8 @@ export function runContentAnalysisCategory(ctx: CategoryExecutionContext): Categ
       categoryName: 'Content Analysis',
       points: 0,
       maxPoints,
+      earnedPoints: 0,
+      possiblePoints: 0,
       checks: [],
       skipped: true,
       skipReason: ctx.reachability !== 'ONLINE' ? 'Site not reachable' : 'No HTML content available'
@@ -747,10 +766,15 @@ export function runContentAnalysisCategory(ctx: CategoryExecutionContext): Categ
   });
   if (hasObfuscation) points += 10;
 
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
   return {
     categoryName: 'Content Analysis',
     points,
     maxPoints,
+    earnedPoints,
+    possiblePoints,
     checks,
     skipped: false
   };
@@ -764,12 +788,16 @@ export function runPhishingPatternsCategory(ctx: CategoryExecutionContext): Cate
   const maxPoints = 50;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    
-  // Calculate earnedPoints and possiblePoints
-  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
-  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
-
-  return { categoryName: 'Phishing Patterns', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable or no content' };
+    return {
+      categoryName: 'Phishing Patterns',
+      points: 0,
+      maxPoints,
+      earnedPoints: 0,
+      possiblePoints: 0,
+      checks: [],
+      skipped: true,
+      skipReason: 'Site not reachable or no content'
+    };
   }
 
   let points = 0;
@@ -834,7 +862,18 @@ export function runPhishingPatternsCategory(ctx: CategoryExecutionContext): Cate
   });
   if (hasPasswordForm && formOriginMismatch) points += 25;
 
-  return { categoryName: 'Phishing Patterns', points, maxPoints, checks, skipped: false };
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return {
+    categoryName: 'Phishing Patterns',
+    points,
+    maxPoints,
+    earnedPoints,
+    possiblePoints,
+    checks,
+    skipped: false
+  };
 }
 
 /**
@@ -845,12 +884,16 @@ export function runBehavioralCategory(ctx: CategoryExecutionContext): CategoryRe
   const maxPoints = 25;
 
   if (ctx.reachability !== 'ONLINE') {
-    
-  // Calculate earnedPoints and possiblePoints
-  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
-  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
-
-  return { categoryName: 'Behavioral Analysis', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    return {
+      categoryName: 'Behavioral Analysis',
+      points: 0,
+      maxPoints,
+      earnedPoints: 0,
+      possiblePoints: 0,
+      checks: [],
+      skipped: true,
+      skipReason: 'Site not reachable'
+    };
   }
 
   let points = 0;
@@ -881,7 +924,18 @@ export function runBehavioralCategory(ctx: CategoryExecutionContext): CategoryRe
   });
   if (ctx.evidence.redirectChain.length > 3) points += 5;
 
-  return { categoryName: 'Behavioral Analysis', points, maxPoints, checks, skipped: false };
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return {
+    categoryName: 'Behavioral Analysis',
+    points,
+    maxPoints,
+    earnedPoints,
+    possiblePoints,
+    checks,
+    skipped: false
+  };
 }
 
 /**
@@ -1001,12 +1055,16 @@ export function runMalwareDetectionCategory(ctx: CategoryExecutionContext): Cate
   const maxPoints = 45;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    
-  // Calculate earnedPoints and possiblePoints
-  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
-  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
-
-  return { categoryName: 'Malware Detection', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    return {
+      categoryName: 'Malware Detection',
+      points: 0,
+      maxPoints,
+      earnedPoints: 0,
+      possiblePoints: 0,
+      checks: [],
+      skipped: true,
+      skipReason: 'Site not reachable'
+    };
   }
 
   let points = 0;
@@ -1041,7 +1099,18 @@ export function runMalwareDetectionCategory(ctx: CategoryExecutionContext): Cate
   });
   if (suspiciousRequests > 0) points += 10;
 
-  return { categoryName: 'Malware Detection', points, maxPoints, checks, skipped: false };
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return {
+    categoryName: 'Malware Detection',
+    points,
+    maxPoints,
+    earnedPoints,
+    possiblePoints,
+    checks,
+    skipped: false
+  };
 }
 
 /**
@@ -1052,12 +1121,16 @@ export function runSocialEngineeringCategory(ctx: CategoryExecutionContext): Cat
   const maxPoints = 30;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    
-  // Calculate earnedPoints and possiblePoints
-  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
-  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
-
-  return { categoryName: 'Social Engineering', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    return {
+      categoryName: 'Social Engineering',
+      points: 0,
+      maxPoints,
+      earnedPoints: 0,
+      possiblePoints: 0,
+      checks: [],
+      skipped: true,
+      skipReason: 'Site not reachable'
+    };
   }
 
   let points = 0;
@@ -1083,7 +1156,18 @@ export function runSocialEngineeringCategory(ctx: CategoryExecutionContext): Cat
   if (foundUrgency.length >= 2) points += 20;
   else if (foundUrgency.length > 0) points += 10;
 
-  return { categoryName: 'Social Engineering', points, maxPoints, checks, skipped: false };
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return {
+    categoryName: 'Social Engineering',
+    points,
+    maxPoints,
+    earnedPoints,
+    possiblePoints,
+    checks,
+    skipped: false
+  };
 }
 
 /**
@@ -1096,12 +1180,16 @@ export function runSecurityHeadersCategory(ctx: CategoryExecutionContext): Categ
   const maxPoints = 25;
 
   if (ctx.reachability !== 'ONLINE') {
-    
-  // Calculate earnedPoints and possiblePoints
-  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
-  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
-
-  return { categoryName: 'Security Headers', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    return {
+      categoryName: 'Security Headers',
+      points: 0,
+      maxPoints,
+      earnedPoints: 0,
+      possiblePoints: 0,
+      checks: [],
+      skipped: true,
+      skipReason: 'Site not reachable'
+    };
   }
 
   let points = 0;
@@ -1166,7 +1254,18 @@ export function runSecurityHeadersCategory(ctx: CategoryExecutionContext): Categ
   });
   if (!hasXFrameOptions) points += 8;
 
-  return { categoryName: 'Security Headers', points, maxPoints, checks, skipped: false };
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return {
+    categoryName: 'Security Headers',
+    points,
+    maxPoints,
+    earnedPoints,
+    possiblePoints,
+    checks,
+    skipped: false
+  };
 }
 
 /**
@@ -1227,12 +1326,18 @@ export function runEmailSecurityCategory(ctx: CategoryExecutionContext): Categor
   });
   if (hasMX && !spfValid) points += 8;
 
-  
-  // Calculate earnedPoints and possiblePoints
   const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
   const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
 
-  return { categoryName: 'Email Security (DMARC)', points, maxPoints, checks, skipped: false };
+  return {
+    categoryName: 'Email Security (DMARC)',
+    points,
+    maxPoints,
+    earnedPoints,
+    possiblePoints,
+    checks,
+    skipped: false
+  };
 }
 
 /**
@@ -1245,12 +1350,16 @@ export function runDataProtectionCategory(ctx: CategoryExecutionContext): Catego
   const maxPoints = 50;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    
-  // Calculate earnedPoints and possiblePoints
-  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
-  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
-
-  return { categoryName: 'Data Protection & Privacy', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    return {
+      categoryName: 'Data Protection & Privacy',
+      points: 0,
+      maxPoints,
+      earnedPoints: 0,
+      possiblePoints: 0,
+      checks: [],
+      skipped: true,
+      skipReason: 'Site not reachable'
+    };
   }
 
   let points = 0;
@@ -1320,7 +1429,18 @@ export function runDataProtectionCategory(ctx: CategoryExecutionContext): Catego
   });
   if (!hasCookieConsent) points += 10;
 
-  return { categoryName: 'Data Protection & Privacy', points, maxPoints, checks, skipped: false };
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return {
+    categoryName: 'Data Protection & Privacy',
+    points,
+    maxPoints,
+    earnedPoints,
+    possiblePoints,
+    checks,
+    skipped: false
+  };
 }
 
 /**
@@ -1331,12 +1451,16 @@ export function runFinancialFraudCategory(ctx: CategoryExecutionContext): Catego
   const maxPoints = 25;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    
-  // Calculate earnedPoints and possiblePoints
-  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
-  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
-
-  return { categoryName: 'Financial Fraud', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    return {
+      categoryName: 'Financial Fraud',
+      points: 0,
+      maxPoints,
+      earnedPoints: 0,
+      possiblePoints: 0,
+      checks: [],
+      skipped: true,
+      skipReason: 'Site not reachable'
+    };
   }
 
   let points = 0;
@@ -1361,7 +1485,18 @@ export function runFinancialFraudCategory(ctx: CategoryExecutionContext): Catego
   });
   if (foundFinancial.length >= 3) points += 15;
 
-  return { categoryName: 'Financial Fraud', points, maxPoints, checks, skipped: false };
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return {
+    categoryName: 'Financial Fraud',
+    points,
+    maxPoints,
+    earnedPoints,
+    possiblePoints,
+    checks,
+    skipped: false
+  };
 }
 
 /**
@@ -1372,12 +1507,16 @@ export function runIdentityTheftCategory(ctx: CategoryExecutionContext): Categor
   const maxPoints = 20;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    
-  // Calculate earnedPoints and possiblePoints
-  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
-  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
-
-  return { categoryName: 'Identity Theft', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    return {
+      categoryName: 'Identity Theft',
+      points: 0,
+      maxPoints,
+      earnedPoints: 0,
+      possiblePoints: 0,
+      checks: [],
+      skipped: true,
+      skipReason: 'Site not reachable'
+    };
   }
 
   let points = 0;
@@ -1402,7 +1541,18 @@ export function runIdentityTheftCategory(ctx: CategoryExecutionContext): Categor
   });
   if (hasFileUpload) points += 10;
 
-  return { categoryName: 'Identity Theft', points, maxPoints, checks, skipped: false };
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return {
+    categoryName: 'Identity Theft',
+    points,
+    maxPoints,
+    earnedPoints,
+    possiblePoints,
+    checks,
+    skipped: false
+  };
 }
 
 /**
@@ -1413,12 +1563,16 @@ export function runTechnicalExploitsCategory(ctx: CategoryExecutionContext): Cat
   const maxPoints = 15;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    
-  // Calculate earnedPoints and possiblePoints
-  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
-  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
-
-  return { categoryName: 'Technical Exploits', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    return {
+      categoryName: 'Technical Exploits',
+      points: 0,
+      maxPoints,
+      earnedPoints: 0,
+      possiblePoints: 0,
+      checks: [],
+      skipped: true,
+      skipReason: 'Site not reachable'
+    };
   }
 
   let points = 0;
@@ -1458,7 +1612,18 @@ export function runTechnicalExploitsCategory(ctx: CategoryExecutionContext): Cat
   });
   if (foundExploits.length > 0) points += 15;
 
-  return { categoryName: 'Technical Exploits', points, maxPoints, checks, skipped: false };
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return {
+    categoryName: 'Technical Exploits',
+    points,
+    maxPoints,
+    earnedPoints,
+    possiblePoints,
+    checks,
+    skipped: false
+  };
 }
 
 /**
@@ -1471,12 +1636,16 @@ export function runLegalComplianceCategory(ctx: CategoryExecutionContext): Categ
   const maxPoints = 35;
 
   if (ctx.reachability !== 'ONLINE' || !ctx.evidence.html) {
-    
-  // Calculate earnedPoints and possiblePoints
-  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
-  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
-
-  return { categoryName: 'Legal & Compliance', points: 0, maxPoints, checks: [], skipped: true, skipReason: 'Site not reachable' };
+    return {
+      categoryName: 'Legal & Compliance',
+      points: 0,
+      maxPoints,
+      earnedPoints: 0,
+      possiblePoints: 0,
+      checks: [],
+      skipped: true,
+      skipReason: 'Site not reachable'
+    };
   }
 
   let points = 0;
@@ -1552,7 +1721,18 @@ export function runLegalComplianceCategory(ctx: CategoryExecutionContext): Categ
   });
   if (!hasContact) points += 8;
 
-  return { categoryName: 'Legal & Compliance', points, maxPoints, checks, skipped: false };
+  const earnedPoints = checks.reduce((sum, c) => sum + c.points, 0);
+  const possiblePoints = checks.reduce((sum, c) => sum + c.maxPoints, 0);
+
+  return {
+    categoryName: 'Legal & Compliance',
+    points,
+    maxPoints,
+    earnedPoints,
+    possiblePoints,
+    checks,
+    skipped: false
+  };
 }
 
 /**

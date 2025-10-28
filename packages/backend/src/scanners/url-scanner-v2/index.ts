@@ -427,16 +427,25 @@ export class URLScannerV2 {
         // Add granular checks
         granularChecks: categoryResults.allChecks,
 
-        // Add category metadata for transparency
+        // Add category metadata for transparency - WITH DETAILED BREAKDOWN
         categoryResults: {
           totalPoints: categoryResults.totalPoints,
           totalPossible: categoryResults.totalPossible,
+          totalCheckPointsEarned: categoryResults.totalCheckPointsEarned,
+          totalCheckPointsPossible: categoryResults.totalCheckPointsPossible,
           riskFactor: categoryRiskFactor,
           categories: categoryResults.results.map(r => ({
-            name: r.categoryName,
-            points: r.points,
+            categoryName: r.categoryName,
+            points: r.points,              // Penalty points
             maxPoints: r.maxPoints,
-            skipped: r.skipped
+            earnedPoints: r.earnedPoints,  // Points earned by checks
+            possiblePoints: r.possiblePoints, // Max points checks can earn
+            percentage: r.possiblePoints > 0
+              ? Math.round((r.earnedPoints / r.possiblePoints) * 100)
+              : 0,
+            checks: r.checks,              // Include all check details
+            skipped: r.skipped,
+            skipReason: r.skipReason
           }))
         },
 
@@ -462,6 +471,54 @@ export class URLScannerV2 {
           stage2Verdict,
           granularVerdict,
           scoringExplanation
+        },
+
+        // STAGE-BY-STAGE VERDICTS (for frontend display)
+        stageVerdicts: {
+          reachability: {
+            status: reachability.status,
+            explanation: reachability.status === 'ONLINE'
+              ? 'Website is online and reachable'
+              : reachability.status === 'OFFLINE'
+              ? 'Website is offline or unreachable'
+              : reachability.status === 'SINKHOLE'
+              ? 'Domain points to known sinkhole (confirmed malicious)'
+              : `Website status: ${reachability.status}`
+          },
+          threatIntel: {
+            hits: tiData.totalHits,
+            tier1Hits: tiData.tier1Hits,
+            verdict: tiData.tier1Hits >= 2 ? 'MALICIOUS' :
+                     tiData.totalHits > 0 ? 'SUSPICIOUS' : 'CLEAN',
+            sources: tiData.tier1Sources.map(s => s.source)
+          },
+          domainAnalysis: {
+            age: evidence.whois.domainAge,
+            verdict: evidence.whois.domainAge < 7 ? 'VERY_SUSPICIOUS' :
+                     evidence.whois.domainAge < 30 ? 'SUSPICIOUS' :
+                     evidence.whois.domainAge < 90 ? 'CAUTIOUS' : 'TRUSTED',
+            explanation: `Domain is ${evidence.whois.domainAge} days old`
+          },
+          contentAnalysis: reachability.status === 'ONLINE' ? {
+            hasLoginForm: evidence.dom.forms.some(f =>
+              f.inputs.some(input => input.type === 'password')
+            ),
+            autoDownload: evidence.autoDownload,
+            verdict: (evidence.dom.forms.some(f => f.inputs.some(i => i.type === 'password')) || evidence.autoDownload)
+              ? 'RISKY' : 'SAFE'
+          } : null
+        },
+
+        // COMBINER EXPLANATION
+        combinerSummary: {
+          algorithm: 'Bayesian Risk Combiner with Conformal Prediction',
+          finalProbability: combinerResult.probability,
+          confidenceInterval: combinerResult.confidenceInterval,
+          verdictLogic: `Risk score ${Math.round(combinerResult.probability * 100)}% maps to level ${riskLevel}. ` +
+            `Computed from ${categoryResults.totalPoints}/${categoryResults.totalPossible} penalty points across ` +
+            `${categoryResults.results.length} categories. Confidence: ${Math.round((1 - combinerResult.confidenceInterval.width) * 100)}%.`,
+          decisionGraph: combinerResult.decisionGraph,
+          modelContributions: combinerResult.modelContributions
         },
 
         transparency: {

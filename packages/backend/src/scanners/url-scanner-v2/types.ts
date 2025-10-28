@@ -413,12 +413,19 @@ export interface EnhancedScanResult {
   categoryResults?: {
     totalPoints: number;
     totalPossible: number;
+    totalCheckPointsEarned?: number;
+    totalCheckPointsPossible?: number;
     riskFactor: number;
     categories: Array<{
-      name: string;
+      categoryName: string;
       points: number;
       maxPoints: number;
+      earnedPoints?: number;
+      possiblePoints?: number;
+      percentage?: number;
+      checks?: GranularCheckResult[];
       skipped: boolean;
+      skipReason?: string;
     }>;
   };
 
@@ -483,6 +490,93 @@ export interface EnhancedScanResult {
 
   // Final verdict (new - ScamAdviser style)
   finalVerdict?: FinalVerdict;
+
+  // Stage-by-stage verdicts (for frontend transparency)
+  stageVerdicts?: {
+    reachability: {
+      status: string;
+      explanation: string;
+    };
+    threatIntel: {
+      hits: number;
+      tier1Hits: number;
+      verdict: string;
+      sources: string[];
+    };
+    domainAnalysis: {
+      age: number;
+      verdict: string;
+      explanation: string;
+    };
+    contentAnalysis: {
+      hasLoginForm: boolean;
+      autoDownload: boolean;
+      verdict: string;
+    } | null;
+  };
+
+  // Combiner summary (explains final risk score calculation)
+  combinerSummary?: {
+    algorithm: string;
+    finalProbability: number;
+    confidenceInterval: {
+      lower: number;
+      upper: number;
+      width: number;
+    };
+    verdictLogic: string;
+    decisionGraph: DecisionNode[];
+    modelContributions: {
+      stage1Weight: number;
+      stage2Weight?: number;
+      causalSignalsWeight: number;
+    };
+  };
+
+  // Detailed analysis (existing transparency structure)
+  detailedAnalysis?: {
+    stage1Verdict?: any;
+    stage2Verdict?: any;
+    granularVerdict?: any;
+    scoringExplanation?: any;
+  };
+
+  // Transparency (existing)
+  transparency?: {
+    totalChecksRun: number;
+    checksPass: number;
+    checksFail: number;
+    checksWarn: number;
+    checksInfo: number;
+    topThreats: Array<{
+      threat: string;
+      name: string;
+      description: string;
+      details?: string;
+      reasoning?: string;
+      penaltyPoints?: number;
+      category: string;
+    }>;
+    processingTime: {
+      totalMs: number;
+      reachabilityMs: number;
+      evidenceMs: number;
+      featureExtractionMs: number;
+      stage1Ms: number;
+      stage2Ms: number;
+      granularChecksMs: number;
+      combinerMs: number;
+      policyMs: number;
+    };
+    dataSourcesCrawled: {
+      threatIntelligence: boolean;
+      whoisDatabase: boolean;
+      dnsRecords: boolean;
+      tlsCertificate: boolean;
+      htmlContent: boolean;
+      screenshot: boolean;
+    };
+  };
 
   // Performance
   latency: {
