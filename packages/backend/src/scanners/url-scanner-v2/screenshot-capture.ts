@@ -34,8 +34,8 @@ export class ScreenshotCaptureService {
   /**
    * Find Chromium executable path with fallback logic
    */
-  private findChromiumPath(): string | undefined {
-    // Try environment variables first
+  private findChromiumPath(): string {
+    // Try environment variables first (REQUIRED for puppeteer-core)
     if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
       logger.info(`[ScreenshotCapture] Using Chromium from PUPPETEER_EXECUTABLE_PATH: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
       return process.env.PUPPETEER_EXECUTABLE_PATH;
@@ -53,8 +53,8 @@ export class ScreenshotCaptureService {
       '/usr/bin/google-chrome',
       '/usr/bin/google-chrome-stable',
       '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-      'C:\Program Files\Google\Chrome\Application\chrome.exe',
-      'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe'
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
     ];
 
     for (const path of commonPaths) {
@@ -64,8 +64,10 @@ export class ScreenshotCaptureService {
       }
     }
 
-    logger.warn('[ScreenshotCapture] No Chromium found, using bundled');
-    return undefined;
+    // CRITICAL: puppeteer-core REQUIRES executablePath - throw error instead of returning undefined
+    const error = '[ScreenshotCapture] CRITICAL: No Chromium found. puppeteer-core requires explicit executablePath. Set PUPPETEER_EXECUTABLE_PATH environment variable.';
+    logger.error(error);
+    throw new Error(error);
   }
 
   /**
@@ -93,7 +95,7 @@ export class ScreenshotCaptureService {
           headless: true,
           timeout: 30000
         });
-        logger.info(`[ScreenshotCapture] Browser launched with: ${executablePath || 'bundled'}`);
+        logger.info(`[ScreenshotCapture] Browser launched successfully with: ${executablePath}`);
       } catch (error: any) {
         logger.error('[ScreenshotCapture] Failed to launch browser:', error.message);
         throw error;
