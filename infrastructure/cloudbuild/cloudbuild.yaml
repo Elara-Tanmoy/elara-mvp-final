@@ -39,7 +39,7 @@ steps:
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/worker:latest'
       - '-f'
-      - 'gcp-infrastructure/docker/Dockerfile.worker'
+      - 'gcp-config/docker/Dockerfile.worker'
       - '.'
     waitFor: ['-']
 
@@ -55,7 +55,7 @@ steps:
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/proxy:latest'
       - '-f'
-      - 'gcp-infrastructure/docker/Dockerfile.proxy'
+      - 'gcp-config/docker/Dockerfile.proxy'
       - '.'
     waitFor: ['-']
 
@@ -73,7 +73,7 @@ steps:
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/frontend:latest'
       - '-f'
-      - 'gcp-infrastructure/docker/Dockerfile.frontend'
+      - 'gcp-config/docker/Dockerfile.frontend'
       - '.'
     waitFor: ['-']
 
