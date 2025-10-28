@@ -157,8 +157,40 @@ export class URLScannerV2 {
       console.log(`  - Combined: ${(stage1Predictions.combined.probability * 100).toFixed(1)}% (conf: ${stage1Predictions.combined.confidence.toFixed(2)})`);
       console.log(`  - Should Exit: ${stage1Predictions.shouldExit} (${latency.stage1}ms)`);
 
+      // Generate Stage-1 Verdict (for transparency)
+      const stage1Verdict = {
+        stage: 'Stage 1: Lightweight ML Models',
+        riskScore: Math.round(stage1Predictions.combined.probability * 100),
+        confidence: stage1Predictions.combined.confidence,
+        decision: stage1Predictions.shouldExit ? 'EXIT_EARLY' : 'CONTINUE_TO_STAGE_2',
+        reasoning: `URL Lexical Model A detected ${(stage1Predictions.urlLexicalA.probability * 100).toFixed(1)}% risk based on character patterns and URL structure. URL Lexical Model B (BERT) found ${(stage1Predictions.urlLexicalB.probability * 100).toFixed(1)}% risk from semantic analysis. Tabular Risk Model calculated ${(stage1Predictions.tabularRisk.probability * 100).toFixed(1)}% risk from domain age (${features.tabular.domainAge} days), TLD risk score (${features.tabular.tldRiskScore}), ASN reputation, and other infrastructure features. Combined confidence of ${(stage1Predictions.combined.confidence * 100).toFixed(1)}% ${stage1Predictions.shouldExit ? 'is high enough to exit early and skip Stage 2' : 'requires Stage 2 deep analysis for higher accuracy'}.`,
+        modelBreakdown: {
+          urlLexicalA: {
+            score: Math.round(stage1Predictions.urlLexicalA.probability * 100),
+            confidence: stage1Predictions.urlLexicalA.confidence,
+            contribution: '40%',
+            method: 'XGBoost character n-gram analysis'
+          },
+          urlLexicalB: {
+            score: Math.round(stage1Predictions.urlLexicalB.probability * 100),
+            confidence: stage1Predictions.urlLexicalB.confidence,
+            contribution: '30%',
+            method: 'BERT semantic URL analysis'
+          },
+          tabularRisk: {
+            score: Math.round(stage1Predictions.tabularRisk.probability * 100),
+            confidence: stage1Predictions.tabularRisk.confidence,
+            contribution: '30%',
+            method: 'Monotonic XGBoost on infrastructure features'
+          }
+        },
+        latencyMs: latency.stage1
+      };
+      console.log(`[V2Scanner] Stage-1 Verdict generated`);
+
       // Step 7: Stage-2 Models (conditional)
       let stage2Predictions = null;
+      let stage2Verdict = null;
       const skipStage2 = options.skipStage2 ||
         shouldSkipStage2(stage1Predictions.combined.confidence, this.config.stage2Threshold, features);
 
@@ -177,6 +209,33 @@ export class URLScannerV2 {
         console.log(`  - Text Persuasion: ${(stage2Predictions.textPersuasion.probability * 100).toFixed(1)}%`);
         console.log(`  - Screenshot CNN: ${(stage2Predictions.screenshotCnn.probability * 100).toFixed(1)}%`);
         console.log(`  - Combined: ${(stage2Predictions.combined.probability * 100).toFixed(1)}% (${latency.stage2}ms)`);
+
+        // Generate Stage-2 Verdict (for transparency)
+        stage2Verdict = {
+          stage: 'Stage 2: Deep ML Models',
+          riskScore: Math.round(stage2Predictions.combined.probability * 100),
+          confidence: stage2Predictions.combined.confidence,
+          reasoning: `Text Persuasion Model (Gemma/Mixtral) analyzed page content for social engineering tactics and detected ${(stage2Predictions.textPersuasion.probability * 100).toFixed(1)}% risk. Found ${stage2Predictions.textPersuasion.persuasionTactics.length} persuasion tactics: ${stage2Predictions.textPersuasion.persuasionTactics.join(', ') || 'none'}. Screenshot CNN (EfficientNet) performed visual analysis on page screenshot and detected ${(stage2Predictions.screenshotCnn.probability * 100).toFixed(1)}% risk. Visual analysis identified ${stage2Predictions.screenshotCnn.detectedBrands.length > 0 ? 'brand impersonation attempts: ' + stage2Predictions.screenshotCnn.detectedBrands.join(', ') : 'no brand impersonation'}. Fake login form detection: ${stage2Predictions.screenshotCnn.isFakeLogin ? 'DETECTED' : 'not detected'}. Combined Stage-2 confidence: ${(stage2Predictions.combined.confidence * 100).toFixed(1)}%.`,
+          modelBreakdown: {
+            textPersuasion: {
+              score: Math.round(stage2Predictions.textPersuasion.probability * 100),
+              confidence: stage2Predictions.textPersuasion.confidence,
+              contribution: '50%',
+              method: 'Gemma 2B LLM social engineering detection',
+              persuasionTactics: stage2Predictions.textPersuasion.persuasionTactics
+            },
+            screenshotCnn: {
+              score: Math.round(stage2Predictions.screenshotCnn.probability * 100),
+              confidence: stage2Predictions.screenshotCnn.confidence,
+              contribution: '50%',
+              method: 'EfficientNet CNN visual phishing detection',
+              detectedBrands: stage2Predictions.screenshotCnn.detectedBrands,
+              isFakeLogin: stage2Predictions.screenshotCnn.isFakeLogin
+            }
+          },
+          latencyMs: latency.stage2
+        };
+        console.log(`[V2Scanner] Stage-2 Verdict generated`);
       } else {
         console.log(`[V2Scanner] Step 7: Stage-2 SKIPPED (confidence=${stage1Predictions.combined.confidence.toFixed(2)}, threshold=${this.config.stage2Threshold})`);
       }
@@ -203,6 +262,42 @@ export class URLScannerV2 {
           console.log(`  - [${check.category}] ${check.name}: ${check.description}`);
         });
       }
+
+      // Generate Granular Checks Verdict (for transparency)
+      const passChecks = categoryResults.allChecks.filter(c => c.status === 'PASS');
+      const warnChecks = categoryResults.allChecks.filter(c => c.status === 'WARNING');
+      const infoChecks = categoryResults.allChecks.filter(c => c.status === 'INFO');
+      const granularVerdict = {
+        stage: 'Granular Security Checks',
+        totalPenaltyPoints: categoryResults.totalPoints,
+        maxPossiblePenalty: categoryResults.totalPossible,
+        riskPercentage: Math.round((categoryResults.totalPoints / categoryResults.totalPossible) * 100),
+        reasoning: `Executed ${categoryResults.allChecks.length} granular security checks across ${categoryResults.results.length} categories (Threat Intelligence, Domain Analysis, SSL/TLS, Content Analysis, Phishing Patterns, etc.). Found ${failedChecks.length} failures, ${warnChecks.length} warnings, ${passChecks.length} passes. Total penalty points: ${categoryResults.totalPoints}/${categoryResults.totalPossible}. Category risk factor: ${(categoryRiskFactor * 100).toFixed(1)}%. This comprehensive rule-based analysis complements ML model predictions to catch known attack patterns that may evade statistical models.`,
+        categoryBreakdown: categoryResults.results.map(cat => ({
+          category: cat.categoryName,
+          penaltyPoints: cat.points,
+          maxPenalty: cat.maxPoints,
+          riskLevel: cat.points === 0 ? 'SAFE' : cat.points < cat.maxPoints * 0.3 ? 'LOW' : cat.points < cat.maxPoints * 0.7 ? 'MEDIUM' : 'HIGH',
+          failedChecks: cat.checks.filter(c => c.status === 'FAIL').length,
+          totalChecks: cat.checks.length,
+          skipped: cat.skipped
+        })),
+        topThreats: failedChecks.slice(0, 5).map(c => ({
+          threat: c.checkId,
+          name: c.name,
+          description: c.description,
+          details: c.details,
+          category: c.category
+        })),
+        checkSummary: {
+          totalChecks: categoryResults.allChecks.length,
+          passed: passChecks.length,
+          failed: failedChecks.length,
+          warnings: warnChecks.length,
+          info: infoChecks.length
+        }
+      };
+      console.log(`[V2Scanner] Granular Verdict generated`);
 
       // Step 8: Combiner + Calibration (NOW INCLUDES CATEGORY RISK BOOST)
       console.log(`[V2Scanner] Step 8: Combiner + Calibration...`);
@@ -250,6 +345,62 @@ export class URLScannerV2 {
         policyResult,
         combinerResult
       );
+
+      // Generate Scoring Explanation (for transparency)
+      const riskBenchmarks = {
+        'A (0-15%)': 'SAFE - Legitimate website with no security concerns',
+        'B (15-30%)': 'LOW RISK - Minor concerns but generally safe to visit',
+        'C (30-50%)': 'MEDIUM RISK - Multiple warning signs detected, proceed with caution',
+        'D (50-75%)': 'HIGH RISK - Strong indicators of phishing or malware',
+        'E (75-90%)': 'CRITICAL RISK - Almost certainly malicious, do not visit',
+        'F (90-100%)': 'SEVERE RISK - Confirmed threat, block immediately'
+      };
+
+      const scoringExplanation = {
+        finalRiskScore: Math.round(combinerResult.probability * 100),
+        confidenceInterval: {
+          lower: Math.round(combinerResult.confidenceInterval.lower * 100),
+          upper: Math.round(combinerResult.confidenceInterval.upper * 100),
+          width: Math.round(combinerResult.confidenceInterval.width * 100)
+        },
+        riskLevel: riskLevel,
+        verdict: riskLevel <= 'B' ? 'SAFE' : riskLevel <= 'D' ? 'SUSPICIOUS' : 'DANGEROUS',
+
+        calculation: {
+          stage1Weight: stage2Predictions ? 0.4 : 1.0,
+          stage1Score: Math.round(stage1Predictions.combined.probability * 100),
+          stage1Contribution: stage2Predictions
+            ? Math.round(stage1Predictions.combined.probability * 0.4 * 100)
+            : Math.round(stage1Predictions.combined.probability * 100),
+
+          stage2Weight: stage2Predictions ? 0.6 : 0,
+          stage2Score: stage2Predictions ? Math.round(stage2Predictions.combined.probability * 100) : null,
+          stage2Contribution: stage2Predictions
+            ? Math.round(stage2Predictions.combined.probability * 0.6 * 100)
+            : null,
+
+          granularWeight: 0.6,
+          granularScore: Math.round((categoryResults.totalPoints / categoryResults.totalPossible) * 100),
+          granularContribution: Math.round((categoryResults.totalPoints / categoryResults.totalPossible) * 0.6 * 100),
+
+          formula: stage2Predictions
+            ? '(Stage1 * 0.4) + (Stage2 * 0.6) + Granular + Causal + Branch = Final'
+            : '(Stage1 * 1.0) + Granular + Causal + Branch = Final',
+          breakdown: stage2Predictions
+            ? `(${Math.round(stage1Predictions.combined.probability * 100)}% * 0.4) + (${Math.round(stage2Predictions.combined.probability * 100)}% * 0.6) + Category Boost + Causal Signals = ${Math.round(combinerResult.probability * 100)}%`
+            : `(${Math.round(stage1Predictions.combined.probability * 100)}% * 1.0) + Category Boost + Causal Signals = ${Math.round(combinerResult.probability * 100)}%`
+        },
+
+        benchmarks: riskBenchmarks,
+        yourScore: `${Math.round(combinerResult.probability * 100)}% falls in Risk Level ${riskLevel} (${riskLevel <= 'B' ? 'SAFE' : riskLevel <= 'D' ? 'SUSPICIOUS' : 'DANGEROUS'})`,
+
+        contributingFactors: combinerResult.decisionGraph.filter(node => Math.abs(node.contribution) > 0.01).map(node => ({
+          component: node.component,
+          contribution: Math.round(node.contribution * 100),
+          impact: node.contribution > 0 ? 'increased risk' : 'decreased risk'
+        }))
+      };
+      console.log(`[V2Scanner] Scoring explanation generated`);
 
       // Step 10: Build preliminary result
       latency.total = Date.now() - startTime;
@@ -304,6 +455,53 @@ export class URLScannerV2 {
 
         screenshotUrl: evidence.screenshot?.url,
         skippedChecks: this.getSkippedChecks(options, reachability.status),
+
+        // NEW: Comprehensive transparency and detailed analysis
+        detailedAnalysis: {
+          stage1Verdict,
+          stage2Verdict,
+          granularVerdict,
+          scoringExplanation
+        },
+
+        transparency: {
+          totalChecksRun: categoryResults.allChecks.length,
+          checksPass: passChecks.length,
+          checksFail: failedChecks.length,
+          checksWarn: warnChecks.length,
+          checksInfo: infoChecks.length,
+
+          topThreats: failedChecks.slice(0, 5).map(c => ({
+            threat: c.checkId,
+            name: c.name,
+            description: c.description,
+            details: c.details,
+            reasoning: c.reasoning,
+            penaltyPoints: c.maxPoints - c.points,
+            category: c.category
+          })),
+
+          processingTime: {
+            totalMs: latency.total,
+            reachabilityMs: latency.reachability,
+            evidenceMs: latency.evidence,
+            featureExtractionMs: latency.featureExtraction,
+            stage1Ms: latency.stage1,
+            stage2Ms: latency.stage2 || 0,
+            granularChecksMs: categoryLatency,
+            combinerMs: latency.combiner,
+            policyMs: latency.policy
+          },
+
+          dataSourcesCrawled: {
+            threatIntelligence: true,
+            whoisDatabase: !options.skipWHOIS,
+            dnsRecords: true,
+            tlsCertificate: !options.skipTLS && reachability.status === 'ONLINE',
+            htmlContent: reachability.status === 'ONLINE',
+            screenshot: !options.skipScreenshot && reachability.status === 'ONLINE'
+          }
+        },
 
         latency,
 

@@ -373,7 +373,9 @@ export interface GranularCheckResult {
   points: number;
   maxPoints: number;
   description: string;
-  evidence?: any;
+  details?: string; // What was actually checked - detailed explanation
+  evidence?: any; // Raw data/proof supporting the check result
+  reasoning?: string; // Why points were awarded/deducted
   timestamp: Date;
 }
 

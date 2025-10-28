@@ -102,17 +102,72 @@ Format as JSON:
       A: 'Safe'
     };
 
+    // Extract key findings from granular checks
+    const failedChecks = result.granularChecks?.filter(c => c.status === 'FAIL') || [];
+    const topIssues = failedChecks.slice(0, 5).map(c => c.description);
+
+    // Generate detailed summary from scan data
+    const domainAgeDays = result.evidenceSummary.domainAge;
+    const domainAgeText = domainAgeDays < 30
+      ? `very new domain (${domainAgeDays} days old - high phishing risk)`
+      : domainAgeDays < 365
+      ? `relatively new domain (${domainAgeDays} days old)`
+      : `established domain (${Math.floor(domainAgeDays / 365)} years old)`;
+
+    const keyFindings: string[] = [];
+
+    // Add domain age finding
+    if (domainAgeDays < 30) {
+      keyFindings.push(`Domain registered ${domainAgeDays} days ago (very new - suspicious)`);
+    } else if (domainAgeDays < 365) {
+      keyFindings.push(`Domain age: ${domainAgeDays} days (less than 1 year)`);
+    }
+
+    // Add TLS finding
+    if (!result.evidenceSummary.tlsValid) {
+      keyFindings.push('Invalid or missing SSL certificate');
+    }
+
+    // Add threat intelligence findings
+    if (result.evidenceSummary.tiHits > 0) {
+      keyFindings.push(`Flagged by ${result.evidenceSummary.tiHits} threat intelligence source(s)`);
+    }
+
+    // Add login form finding
+    if (result.evidenceSummary.hasLoginForm) {
+      keyFindings.push('Password form detected on page');
+    }
+
+    // Add top failed checks
+    topIssues.slice(0, 3).forEach(issue => keyFindings.push(issue));
+
+    // Generate recommendation
+    const recommendation = result.riskLevel === 'F' || result.riskLevel === 'E'
+      ? 'BLOCK: Do not visit this website. It has been identified as a severe security threat.'
+      : result.riskLevel === 'D'
+      ? 'HIGH RISK: Avoid visiting unless absolutely necessary. Strong indicators of malicious intent.'
+      : result.riskLevel === 'C'
+      ? 'CAUTION: Proceed with caution. Multiple warning signs detected.'
+      : result.riskLevel === 'B'
+      ? 'LOW RISK: Generally safe but minor concerns identified.'
+      : 'SAFE: No significant security concerns detected.';
+
+    const summary = `Security scan detected ${failedChecks.length} security issue(s) with a final risk score of ${Math.round(result.probability * 100)}%. The website is a ${domainAgeText}. ${topIssues.length > 0 ? 'Key concerns: ' + topIssues.slice(0, 2).join('; ') + '.' : 'No critical issues found.'} Recommendation: ${recommendation}`;
+
     return {
-      explanation: `This website has been classified as ${riskMap[result.riskLevel]} based on security analysis.`,
-      keyFindings: [
+      explanation: summary,
+      keyFindings: keyFindings.length > 0 ? keyFindings : [
         `Domain age: ${result.evidenceSummary.domainAge} days`,
         `TLS certificate: ${result.evidenceSummary.tlsValid ? 'Valid' : 'Invalid'}`,
-        `Threat intelligence hits: ${result.evidenceSummary.tiHits}`,
-        `Login form detected: ${result.evidenceSummary.hasLoginForm ? 'Yes' : 'No'}`
+        `Threat intelligence hits: ${result.evidenceSummary.tiHits}`
       ],
-      riskAssessment: `Risk level ${result.riskLevel} assigned with ${Math.round(result.probability * 100)}% confidence.`,
-      recommendedActions: result.recommendedActions || ['Review detailed scan report'],
-      technicalDetails: `Reachability: ${result.reachability}. Scan ID: ${result.scanId}`
+      riskAssessment: `Risk level ${result.riskLevel} (${riskMap[result.riskLevel]}) assigned with ${Math.round(result.probability * 100)}% risk score. Analyzed ${result.granularChecks?.length || 0} security checks across multiple categories. Confidence interval: ${Math.round((result.confidenceInterval?.lower || 0) * 100)}%-${Math.round((result.confidenceInterval?.upper || 0) * 100)}%.`,
+      recommendedActions: result.recommendedActions || [
+        recommendation,
+        'Review detailed scan report for full analysis',
+        'Check transparency section for complete breakdown'
+      ],
+      technicalDetails: `Reachability: ${result.reachability}. Stage-1 Models: ${result.stage1 ? 'executed' : 'skipped'}. Stage-2 Models: ${result.stage2 ? 'executed' : 'skipped'}. Granular Checks: ${result.granularChecks?.length || 0} executed. Scan ID: ${result.scanId}.`
     };
   }
 }
