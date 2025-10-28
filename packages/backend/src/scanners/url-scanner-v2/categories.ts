@@ -1362,6 +1362,8 @@ export function executeCategories(ctx: CategoryExecutionContext): {
   results: CategoryResult[];
   totalPoints: number;
   totalPossible: number;
+  totalCheckPointsEarned: number;
+  totalCheckPointsPossible: number;
   allChecks: GranularCheckResult[];
 } {
   const results: CategoryResult[] = [];
@@ -1394,11 +1396,17 @@ export function executeCategories(ctx: CategoryExecutionContext): {
   const totalPoints = results.reduce((sum, r) => sum + r.points, 0);
   const totalPossible = results.reduce((sum, r) => sum + r.maxPoints, 0);
   const allChecks = results.flatMap(r => r.checks);
+  
+  // ALSO calculate sum of check points earned (for frontend display)
+  const totalCheckPointsEarned = allChecks.reduce((sum, check) => sum + check.points, 0);
+  const totalCheckPointsPossible = allChecks.reduce((sum, check) => sum + check.maxPoints, 0);
 
   return {
     results,
-    totalPoints,
-    totalPossible,
+    totalPoints,          // Penalty points (for risk calculation)
+    totalPossible,        // Max penalty points
+    totalCheckPointsEarned,     // NEW: Points earned by checks
+    totalCheckPointsPossible,   // NEW: Max points checks can earn
     allChecks
   };
 }

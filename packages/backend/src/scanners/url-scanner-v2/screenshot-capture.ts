@@ -7,6 +7,7 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
 import { Storage } from '@google-cloud/storage';
 import crypto from 'crypto';
+import fs from 'fs';
 import { logger } from '../../config/logger.js';
 
 const PROJECT_ID = process.env.GCP_PROJECT_ID || 'elara-mvp-13082025-u1';
@@ -31,13 +32,53 @@ export class ScreenshotCaptureService {
   }
 
   /**
+   * Find Chromium executable path with fallback logic
+   */
+  private findChromiumPath(): string | undefined {
+    // Try environment variables first
+    if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+      logger.info(`[ScreenshotCapture] Using Chromium from PUPPETEER_EXECUTABLE_PATH: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
+      return process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+
+    if (process.env.CHROMIUM_PATH && fs.existsSync(process.env.CHROMIUM_PATH)) {
+      logger.info(`[ScreenshotCapture] Using Chromium from CHROMIUM_PATH: ${process.env.CHROMIUM_PATH}`);
+      return process.env.CHROMIUM_PATH;
+    }
+
+    // Try common paths in order
+    const commonPaths = [
+      '/usr/bin/chromium',
+      '/usr/bin/chromium-browser',
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable',
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      'C:\Program Files\Google\Chrome\Application\chrome.exe',
+      'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe'
+    ];
+
+    for (const path of commonPaths) {
+      if (fs.existsSync(path)) {
+        logger.info(`[ScreenshotCapture] Found Chromium at: ${path}`);
+        return path;
+      }
+    }
+
+    logger.warn('[ScreenshotCapture] No Chromium found, using bundled');
+    return undefined;
+  }
+
+  /**
    * Initialize browser instance
    */
   async initBrowser(): Promise<void> {
     if (!this.browser) {
       try {
         this.browser = await puppeteer.launch({
-          executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+          const executablePath = this.findChromiumPath();
+
+          this.browser = await puppeteer.launch({
+            executablePath,
           args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -53,7 +94,7 @@ export class ScreenshotCaptureService {
           headless: true,
           timeout: 30000
         });
-        logger.info('[ScreenshotCapture] Browser launched successfully');
+        logger.info(`[ScreenshotCapture] Browser launched with: ${executablePath || 'bundled'}`);
       } catch (error: any) {
         logger.error('[ScreenshotCapture] Failed to launch browser:', error.message);
         throw error;

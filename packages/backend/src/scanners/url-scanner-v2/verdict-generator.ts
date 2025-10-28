@@ -11,9 +11,9 @@
 import type {
   EnhancedScanResult,
   GranularCheckResult,
-  ReachabilityStatus,
-  RiskLevel
+  ReachabilityStatus
 } from './types';
+import { RiskLevel } from './types';
 
 export interface FinalVerdict {
   verdict: 'SAFE' | 'SUSPICIOUS' | 'DANGEROUS' | 'UNKNOWN';
