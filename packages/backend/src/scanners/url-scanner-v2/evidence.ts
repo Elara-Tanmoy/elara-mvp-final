@@ -94,10 +94,9 @@ export class EvidenceCollector {
       const autoRedirect = this.detectAutoRedirect($);
       const obfuscatedScripts = dom.scripts.some(s => s.obfuscated);
 
-      // Screenshot - capture for reachable URLs (ONLINE, WAF, PARKED)
+      // Screenshot - ALWAYS capture unless explicitly skipped (regardless of reachability)
       let screenshot: ScreenshotEvidence | undefined;
-      const reachableStatuses = ['ONLINE', 'WAF', 'PARKED'];
-      if (!options.skipScreenshot && reachableStatuses.includes(reachability.status)) {
+      if (!options.skipScreenshot) {
         try {
           screenshot = await this.collectScreenshot(url);
           if (screenshot) {

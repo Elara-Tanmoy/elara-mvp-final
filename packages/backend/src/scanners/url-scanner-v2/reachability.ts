@@ -345,25 +345,39 @@ export class ReachabilityChecker {
 
   /**
    * Detect WAF from headers and body
+   * IMPORTANT: Only detect WAF if there's strong evidence (not just keywords)
    */
   private detectWAF(headers: http.IncomingHttpHeaders, body: string): string[] {
     const detected: string[] = [];
 
-    // Check headers
+    // Check headers for WAF-specific headers (not just keywords in any header)
     const headerString = JSON.stringify(headers).toLowerCase();
-    for (const signature of WAF_SIGNATURES) {
-      if (headerString.includes(signature)) {
-        detected.push(signature);
-      }
+
+    // Only detect if there's a specific WAF header (e.g., cf-ray, x-akamai, etc.)
+    if (headers['cf-ray'] || headers['x-cdn'] === 'cloudflare') {
+      detected.push('cloudflare');
+    }
+    if (headers['x-akamai-request-id'] || headers['x-akamai-session-id']) {
+      detected.push('akamai');
+    }
+    if (headerString.includes('x-sucuri-id')) {
+      detected.push('sucuri');
+    }
+    if (headerString.includes('x-iinfo') || headerString.includes('x-cdn: incapsula')) {
+      detected.push('incapsula');
     }
 
-    // Check for common WAF response patterns
+    // For body-based detection, require multiple strong indicators
     const bodyLower = body.toLowerCase();
-    if (bodyLower.includes('access denied')) {
-      detected.push('access-denied-response');
-    }
-    if (bodyLower.includes('ray id')) {
-      detected.push('cloudflare');
+
+    // Only mark as WAF block if we have BOTH "access denied" AND a WAF reference
+    const hasAccessDenied = bodyLower.includes('access denied') || bodyLower.includes('access forbidden');
+    const hasWafReference = bodyLower.includes('web application firewall') ||
+                           bodyLower.includes('security solution') ||
+                           bodyLower.includes('blocked by');
+
+    if (hasAccessDenied && hasWafReference && detected.length === 0) {
+      detected.push('generic-waf-block');
     }
 
     return detected;
