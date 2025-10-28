@@ -65,65 +65,90 @@ export class ScreenshotCaptureService {
    * Capture screenshot of URL
    */
   async capture(url: string, options: { skipUpload?: boolean } = {}): Promise<ScreenshotResult> {
+    let page: Page | null = null;
+
     try {
+      logger.info(`[ScreenshotCapture] Starting capture for: ${url}`);
       await this.initBrowser();
 
       if (!this.browser) {
         throw new Error('Browser not initialized');
       }
 
-      const page: Page = await this.browser.newPage();
+      page = await this.browser.newPage();
+      logger.info(`[ScreenshotCapture] New page created`);
 
-      try {
-        // Set viewport
-        await page.setViewport({ width: 1920, height: 1080 });
+      // Set viewport
+      await page.setViewport({ width: 1920, height: 1080 });
 
-        // Set user agent
-        await page.setUserAgent(
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        );
+      // Set user agent
+      await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      );
 
-        // Navigate to URL
-        await page.goto(url, {
-          waitUntil: 'networkidle0',
-          timeout: SCREENSHOT_TIMEOUT
-        });
+      // Navigate to URL with error handling
+      logger.info(`[ScreenshotCapture] Navigating to ${url}`);
+      await page.goto(url, {
+        waitUntil: 'networkidle0',
+        timeout: SCREENSHOT_TIMEOUT
+      });
+      logger.info(`[ScreenshotCapture] Page loaded successfully`);
 
-        // Wait a bit for dynamic content
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait a bit for dynamic content
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Capture screenshot
-        const screenshotBuffer = await page.screenshot({
-          type: 'png',
-          fullPage: false
-        });
+      // Capture screenshot
+      logger.info(`[ScreenshotCapture] Capturing screenshot`);
+      const screenshotBuffer = await page.screenshot({
+        type: 'png',
+        fullPage: false
+      });
+      logger.info(`[ScreenshotCapture] Screenshot captured: ${screenshotBuffer.length} bytes`);
 
-        await page.close();
+      await page.close();
+      page = null;
 
-        // Generate filename
-        const hash = crypto.createHash('md5').update(url).digest('hex');
-        const timestamp = Date.now();
-        const filename = `screenshots/${timestamp}-${hash}.png`;
+      // Generate filename
+      const hash = crypto.createHash('md5').update(url).digest('hex');
+      const timestamp = Date.now();
+      const filename = `screenshots/${timestamp}-${hash}.png`;
 
-        // Upload to GCS (unless skipped)
-        let gcsUrl: string | undefined;
-        if (!options.skipUpload) {
-          gcsUrl = await this.uploadToGCS(filename, screenshotBuffer);
-        }
-
-        return {
-          url: gcsUrl,
-          width: 1920,
-          height: 1080,
-          size: screenshotBuffer.length,
-          capturedAt: new Date()
-        };
-      } catch (error: any) {
-        await page.close();
-        throw error;
+      // Upload to GCS (unless skipped)
+      let gcsUrl: string | undefined;
+      if (!options.skipUpload) {
+        logger.info(`[ScreenshotCapture] Uploading to GCS: ${filename}`);
+        gcsUrl = await this.uploadToGCS(filename, screenshotBuffer);
+        logger.info(`[ScreenshotCapture] Upload complete: ${gcsUrl}`);
+      } else {
+        // If skipping upload, return base64 data URL
+        const base64 = screenshotBuffer.toString('base64');
+        gcsUrl = `data:image/png;base64,${base64}`;
+        logger.info(`[ScreenshotCapture] Returning base64 data URL (${base64.length} chars)`);
       }
+
+      logger.info(`[ScreenshotCapture] SUCCESS - Screenshot captured for ${url}`);
+      return {
+        url: gcsUrl,
+        width: 1920,
+        height: 1080,
+        size: screenshotBuffer.length,
+        capturedAt: new Date()
+      };
     } catch (error: any) {
-      logger.error(`[ScreenshotCapture] Failed to capture ${url}:`, error.message);
+      if (page) {
+        try {
+          await page.close();
+        } catch (closeError) {
+          logger.error(`[ScreenshotCapture] Error closing page:`, closeError);
+        }
+      }
+
+      logger.error(`[ScreenshotCapture] FAILED to capture ${url}:`, {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+
       return {
         error: error.message
       };

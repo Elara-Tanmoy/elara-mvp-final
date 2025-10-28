@@ -479,6 +479,9 @@ export interface EnhancedScanResult {
   // Reputation info (new)
   reputationInfo?: ReputationInfo;
 
+  // Final verdict (new - ScamAdviser style)
+  finalVerdict?: FinalVerdict;
+
   // Performance
   latency: {
     total: number;
@@ -496,6 +499,25 @@ export interface EnhancedScanResult {
   confidence?: number;
   threatIntelligence?: any;
   categories?: any;
+}
+
+/**
+ * Final verdict for frontend display
+ */
+export interface FinalVerdict {
+  verdict: 'SAFE' | 'SUSPICIOUS' | 'DANGEROUS' | 'UNKNOWN';
+  trustScore: number; // 0-100 (inverse of risk score)
+  summary: string;
+  recommendation: string;
+  positiveHighlights: string[];
+  negativeHighlights: string[];
+  badges: VerdictBadge[];
+}
+
+export interface VerdictBadge {
+  type: 'success' | 'warning' | 'danger' | 'info';
+  icon: string;
+  text: string;
 }
 
 /**

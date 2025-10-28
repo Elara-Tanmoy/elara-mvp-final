@@ -28,6 +28,7 @@ import { geminiScanSummarizerService } from '../../services/ai/gemini-scan-summa
 import { V2GeminiSummarizer } from '../../services/gemini/v2-summarizer.service.js';
 import { formatNonTechSummary, formatTechSummary } from './result-formatters';
 import { generateScoringExplanation, getReputationInfo } from './scoring-explainer';
+import { generateVerdict } from './verdict-generator.js';
 import { ReachabilityStatus, RiskLevel } from './types';
 import type {
   EnhancedScanResult,
@@ -366,8 +367,8 @@ export class URLScannerV2 {
         techSummary = undefined;
       }
 
-      // Build final result with AI summary, scoring explanation, and formatted outputs
-      const result: EnhancedScanResult = {
+      // Build preliminary result with all data
+      const resultWithExtras: EnhancedScanResult = {
         ...preliminaryResult,
         scoringExplanation,
         reputationInfo,
@@ -376,8 +377,28 @@ export class URLScannerV2 {
         techSummary
       };
 
+      // Step 12: Generate final verdict (ScamAdviser style)
+      let finalVerdict;
+      try {
+        console.log(`[V2Scanner] Step 12: Generating final verdict...`);
+        finalVerdict = generateVerdict(resultWithExtras);
+        console.log(`[V2Scanner] Final verdict: ${finalVerdict.verdict} (Trust Score: ${finalVerdict.trustScore}/100)`);
+        console.log(`[V2Scanner] Positive highlights: ${finalVerdict.positiveHighlights.length}`);
+        console.log(`[V2Scanner] Negative highlights: ${finalVerdict.negativeHighlights.length}`);
+      } catch (error: any) {
+        console.warn('[V2Scanner] Failed to generate final verdict:', error.message);
+        finalVerdict = undefined;
+      }
+
+      // Build final result
+      const result: EnhancedScanResult = {
+        ...resultWithExtras,
+        finalVerdict
+      };
+
       console.log(`\n========== V2 SCAN COMPLETE ==========`);
       console.log(`[V2Scanner] Verdict: ${result.verdict} | Risk: ${result.riskLevel} | Score: ${result.riskScore}%`);
+      console.log(`[V2Scanner] Trust Score: ${finalVerdict?.trustScore}/100`);
       console.log(`=========================================\n`);
 
       return result;

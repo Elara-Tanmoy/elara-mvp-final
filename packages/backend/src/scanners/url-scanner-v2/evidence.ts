@@ -97,7 +97,16 @@ export class EvidenceCollector {
       // Screenshot - only capture for ONLINE URLs to save resources
       let screenshot: ScreenshotEvidence | undefined;
       if (!options.skipScreenshot && reachability.status === 'ONLINE') {
-        screenshot = await this.collectScreenshot(url);
+        try {
+          screenshot = await this.collectScreenshot(url);
+          if (screenshot) {
+            logger.info(`[Evidence] Screenshot captured successfully for ${url}`);
+          } else {
+            logger.warn(`[Evidence] Screenshot capture returned undefined for ${url}`);
+          }
+        } catch (error: any) {
+          logger.error(`[Evidence] Screenshot capture failed for ${url}:`, error.message);
+        }
       }
 
       const evidence: EvidenceData = {
@@ -453,12 +462,20 @@ export class EvidenceCollector {
         return undefined;
       }
 
+      // Ensure we have a valid URL before returning
+      if (!result.url) {
+        logger.warn(`[Evidence] Screenshot URL missing from capture result`);
+        return undefined;
+      }
+
+      // Build proper ScreenshotEvidence with all required fields
       return {
         url: result.url,
         width: result.width || 1920,
         height: result.height || 1080,
-        size: result.size || 0,
-        capturedAt: result.capturedAt || new Date()
+        hasLoginForm: false, // TODO: Implement with CV model
+        brandLogosDetected: [], // TODO: Implement with CV model
+        ocrText: '' // TODO: Implement with Tesseract OCR
       };
     } catch (error: any) {
       logger.error(`[Evidence] Screenshot capture error:`, error.message);
