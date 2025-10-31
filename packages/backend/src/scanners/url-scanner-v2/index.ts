@@ -563,7 +563,7 @@ export class URLScannerV2 {
             dnsRecords: true,
             tlsCertificate: !options.skipTLS && reachability.status === 'ONLINE',
             htmlContent: reachability.status === 'ONLINE',
-            screenshot: !options.skipScreenshot && reachability.status === 'ONLINE'
+            screenshot: !options.skipScreenshot
           }
         },
 
