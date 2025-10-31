@@ -86,7 +86,7 @@ export const globalRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   // Required when behind a proxy (GKE load balancer)
-  trustProxy: true,
+  trustProxy: 2,  // GKE Ingress + GCP Load Balancer
   skip: (req: Request) => {
     return req.path.startsWith('/health') || req.path.startsWith('/metrics');
   }
